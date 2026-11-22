@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>启源 · 隐私政策</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b0d0c;color:#d9dcd8;font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+    font-size:15px;line-height:1.9;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 22px 64px}
+  .back{display:inline-flex;align-items:center;gap:6px;color:#e3b184;text-decoration:none;font-size:14px;margin-bottom:22px}
+  h1{font-family:"Songti SC","Noto Serif SC",serif;font-size:27px;letter-spacing:1px;color:#f2efe7;margin:0 0 6px}
+  .meta{color:#8b918d;font-size:12.5px;margin-bottom:26px}
+  h2{font-size:16px;color:#efcf9f;margin:28px 0 8px;letter-spacing:.5px}
+  p{margin:0 0 10px}
+  ul{margin:0 0 12px;padding-left:20px}
+  li{margin-bottom:6px}
+  a{color:#e3b184}
+  .card{background:#141816;border:1px solid #242a27;border-radius:14px;padding:14px 16px;margin:14px 0}
+  .note{color:#9aa09c;font-size:13px}
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid #242a27;color:#818783;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 返回启源</a>
+  <h1>启源隐私政策</h1>
+  <div class="meta">生效日期：2026 年 11 月 22 日 · 政策版本 1.0 · 适用应用版本 0.1.2</div>
+
+  <div class="card note">
+    开发者：Tavo（以下称“我们”）<br>
+    应用名称：启源<br>
+    应用包名：app.tavo.rp<br>
+    联系邮箱：<a href="mailto:robinliu721@qq.com">robinliu721@qq.com</a>
+  </div>
+
+  <p>启源是一款单机互动叙事应用。我们没有账号体系、没有自有服务器、没有广告或统计分析 SDK。你的世界设定、对话、角色、记忆与时间线默认只保存在这台设备上。</p>
+
+  <h2>一、我们收集哪些信息</h2>
+  <p>我们不收集你的姓名、手机号、身份证号、通讯录、精确位置、设备广告标识或任何可直接识别个人身份的信息。</p>
+  <p>应用会在本机保存以下内容，用于实现世界与剧情功能：</p>
+  <ul>
+    <li>你创建或导入的世界设定、角色档案、剧情阶段与时间线；</li>
+    <li>你与角色产生的对话、记忆、事件簿与演化记录；</li>
+    <li>你选择的主题、背景、封面与界面偏好；</li>
+    <li>你主动配置的大模型接口地址、模型名与 API Key。</li>
+  </ul>
+
+  <h2>二、数据保存在哪里</h2>
+  <ul>
+    <li>结构化数据保存在本机浏览器的 localStorage 中，图片保存在本机 IndexedDB 中。</li>
+    <li>API Key 在 Android 设备上通过系统 Keystore（AES/GCM）加密后保存；在无系统密钥库的浏览器调试环境中为本地存储。</li>
+    <li>我们不会把上述数据上传到开发者服务器，也不会在不同设备之间同步。</li>
+    <li>卸载应用或清除应用数据会删除本机保存的全部内容；请在卸载前自行导出需要保留的世界卡或存档。</li>
+  </ul>
+
+  <h2>三、网络请求与第三方模型</h2>
+  <p>启源本身不运营任何联网服务。只有当你主动配置并触发 AI 生成时，应用才会直接连接你选择的第三方大模型接口，例如 OpenAI 兼容接口、Anthropic 接口或你自建的接口。</p>
+  <ul>
+    <li>发送的内容限于完成本次生成所必要的提示词与上下文，例如世界设定、当前行动、角色状态与近期记忆。</li>
+    <li>请求由你的设备直接发往你配置的接口地址，不经过我们的服务器；我们不代理、不存储、不转售这些请求。</li>
+    <li>第三方接口如何收集、使用和保存数据，由其自身的隐私政策与服务条款约束。请在使用前阅读对应服务商的条款，并避免向不可信的接口发送敏感信息。</li>
+    <li>如果你使用自建接口或局域网接口，数据流向由你自行控制。</li>
+  </ul>
+
+  <h2>四、设备权限</h2>
+  <ul>
+    <li><b>网络权限（INTERNET / ACCESS_NETWORK_STATE）</b>：仅用于向你配置的模型接口发起请求与判断网络状态。</li>
+    <li><b>文件选择</b>：仅在你主动导入世界卡 / 存档或导出文件时，通过系统文件选择器读取或写入你指定的文件。</li>
+    <li>应用不申请位置、通讯录、短信、相机、麦克风、通话记录等权限，也不读取与功能无关的文件。</li>
+  </ul>
+
+  <h2>五、AI 生成内容</h2>
+  <p>应用内的天道叙事、角色台词与事件描写由你配置的 AI 模型生成。生成内容为虚构，可能不准确、不完整或包含不符合你预期的表达，仅供娱乐与创作参考，不构成任何现实建议。</p>
+  <p>你不得利用本应用生成、传播违反法律法规、侵犯他人权益、危害未成年人或公共安全的内容。你对自己输入的行动、导入的世界卡以及通过第三方接口生成的内容负责。</p>
+  <p>我们不会在生成内容中主动收集或回传你的个人信息；如你在输入中主动填写真实个人信息，请自行评估风险。</p>
+
+  <h2>六、未成年人保护</h2>
+  <p>本应用面向 16 周岁及以上用户。未满 16 周岁的未成年人应在监护人同意和指导下使用；监护人应合理安排使用时间，并关注 AI 生成内容。若我们发现存在未经监护人同意收集未成年人信息的情形，会依法处理。</p>
+
+  <h2>七、数据删除与管理</h2>
+  <ul>
+    <li>你可以在应用内删除单个世界实例、删除世界卡、清空调试日志或重置实例。</li>
+    <li>你可以在系统设置中清除应用数据，或卸载应用以删除全部本机数据。</li>
+    <li>如需就本机数据或隐私问题联系我们，请发送邮件至 <a href="mailto:robinliu721@qq.com">robinliu721@qq.com</a>。我们会在核实后 15 个工作日内答复。</li>
+  </ul>
+
+  <h2>八、备案与合规说明</h2>
+  <p>启源不设自有服务器、不提供账号注册、云端存储或内容分发服务，属于本地单机应用；应用内的联网能力仅用于你自行配置的第三方模型接口。若后续版本接入自有联网服务，我们将依法办理 APP 备案并在本政策中更新备案编号。</p>
+
+  <h2>九、政策更新</h2>
+  <p>我们可能因功能或法规变化更新本政策。更新后的政策会在应用内与发布页面公示，并在文首标注生效日期。若变更涉及你的权利或数据处理方式，我们会以显著方式提示。</p>
+
+  <h2>十、联系我们</h2>
+  <p>开发者：Tavo<br>联系邮箱：<a href="mailto:robinliu721@qq.com">robinliu721@qq.com</a><br>应用名称：启源<br>包名：app.tavo.rp</p>
+
+  <footer>© 2026 Tavo · 启源。本政策适用于启源 Android 客户端及其后续更新版本。</footer>
+</div>
+</body>
+</html>

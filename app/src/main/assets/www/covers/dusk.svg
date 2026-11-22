@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b100c"/>
+      <stop offset=".5" stop-color="#4a2b1c"/>
+      <stop offset="1" stop-color="#120c09"/>
+    </linearGradient>
+    <radialGradient id="sun" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffd59a"/>
+      <stop offset=".55" stop-color="#f0a45c" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#e8935a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx=".5" cy=".45" r=".8">
+      <stop offset=".5" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky)"/>
+  <circle cx="552" cy="188" r="86" fill="url(#sun)" opacity=".9"/>
+  <circle cx="552" cy="188" r="34" fill="#ffd9a0" opacity=".85"/>
+  <g fill="#241511" opacity=".85">
+    <path d="M0 330 C120 292 240 300 360 336 C480 372 620 344 800 316 L800 450 L0 450Z"/>
+  </g>
+  <path d="M0 372 C140 336 280 344 420 382 C560 420 690 392 800 368 L800 450 L0 450Z" fill="#150e0b"/>
+  <g stroke="#f0b070" stroke-width="1" opacity=".18">
+    <path d="M180 300 h140"/><path d="M360 322 h180"/><path d="M560 292 h120"/>
+  </g>
+  <g fill="#0d0907">
+    <path d="M470 392 c8 -10 18 -10 26 0 Z"/>
+    <path d="M502 396 c7 -9 16 -9 23 0 Z"/>
+    <path d="M532 390 c6 -8 14 -8 20 0 Z"/>
+    <rect x="486" y="392" width="2" height="8"/>
+    <rect x="516" y="396" width="2" height="8"/>
+  </g>
+  <g fill="#e9c49a" opacity=".06">
+    <ellipse cx="240" cy="252" rx="220" ry="14"/>
+    <ellipse cx="560" cy="244" rx="200" ry="12"/>
+  </g>
+  <rect width="800" height="450" fill="url(#vig)"/>
+</svg>

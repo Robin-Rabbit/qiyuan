@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#091018"/>
+      <stop offset=".55" stop-color="#1d2b35"/>
+      <stop offset="1" stop-color="#0a1115"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16232b"/>
+      <stop offset="1" stop-color="#070b0e"/>
+    </linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffe0ae" stop-opacity=".95"/>
+      <stop offset=".35" stop-color="#f0b06a" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#f0b06a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx=".5" cy=".45" r=".78">
+      <stop offset=".5" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".6"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky)"/>
+  <g fill="#cfdde2">
+    <ellipse cx="260" cy="120" rx="250" ry="26" opacity=".05"/>
+    <ellipse cx="520" cy="168" rx="300" ry="30" opacity=".06"/>
+    <ellipse cx="380" cy="220" rx="340" ry="26" opacity=".05"/>
+  </g>
+  <g fill="#0a1014">
+    <rect x="20" y="238" width="120" height="72"/>
+    <rect x="146" y="252" width="86" height="58"/>
+    <rect x="238" y="242" width="64" height="68"/>
+  </g>
+  <g stroke="#0b1216" stroke-width="5" fill="none" opacity=".95">
+    <path d="M300 310 L300 168 M300 200 L250 240 M300 214 L352 250"/>
+    <path d="M268 310 L268 206 M268 232 L228 262"/>
+  </g>
+  <path d="M0 312 L800 300 L800 450 L0 450Z" fill="url(#water)"/>
+  <g stroke="#f0c48c" stroke-width="2" opacity=".18">
+    <path d="M640 330 v54"/><path d="M646 352 v40"/><path d="M654 342 v52"/>
+  </g>
+  <g fill="#05090c">
+    <rect x="628" y="286" width="8" height="150"/>
+    <path d="M604 300 h56 l-8 -12 h-40 Z"/>
+    <circle cx="632" cy="288" r="5.5" fill="#ffe3b8"/>
+  </g>
+  <circle cx="632" cy="292" r="66" fill="url(#lamp)" opacity=".55"/>
+  <g fill="#0a1115" opacity=".9">
+    <path d="M0 372 L800 360 L800 450 L0 450Z"/>
+    <path d="M40 400 h150 v18 h-150 Z"/>
+  </g>
+  <g stroke="#31434a" stroke-width="2" opacity=".5">
+    <path d="M80 330 v-42"/><path d="M92 330 v-56"/><path d="M104 330 v-38"/>
+  </g>
+  <rect width="800" height="450" fill="url(#vig)"/>
+</svg>

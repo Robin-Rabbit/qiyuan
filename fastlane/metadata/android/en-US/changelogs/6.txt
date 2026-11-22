@@ -1,0 +1,1 @@
+0.1.2: privacy consent; world cards separated from saves; story stages stay in saves; character evolution never writes back to world cards; Android backup disabled.

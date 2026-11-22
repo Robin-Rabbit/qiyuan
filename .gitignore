@@ -1,0 +1,15 @@
+.DS_Store
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+captures/
+tavo-release.keystore
+*.jks
+*.keystore
+dist/
+*.apk
+*.aab
+*.log

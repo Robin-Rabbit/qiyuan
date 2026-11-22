@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0b0d0e</item>
+        <item name="android:statusBarColor">#0b0d0e</item>
+        <item name="android:navigationBarColor">#0b0d0e</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:colorAccent">#7e4df1</item>
+        <item name="android:windowSplashScreenBackground">#0b0d0e</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#00000000</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+    </style>
+</resources>

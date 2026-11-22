@@ -1,0 +1,15 @@
+Qiyuan is a local-first Android interactive fiction app. No account, no developer server, no world marketplace.
+
+Create or import a "world card" with structured lore, calendar, factions and characters. Create any number of independent saves from the same card. Each save has its own timeline, messages, memories, events and character growth.
+
+Two ways to play:
+- Free mode: explore the world without stage limits.
+- Story mode: generate a stage plan for this save only. Future stages never enter the prompt.
+
+Every NPC has a profile, independent memory, current goal and evolution history. Evolution is stored in the save and never written back to the world card.
+
+Bring your own OpenAI-compatible or Anthropic endpoint (or an aggregate pool). Requests go directly from your device to the endpoint you configure. API keys are encrypted with Android Keystore.
+
+All structured data stays on your device. There are no ads, analytics, tracking or push SDKs.
+
+Narrative text is AI-generated fiction, for entertainment only.

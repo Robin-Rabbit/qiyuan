@@ -1,0 +1,26 @@
+Categories:
+  - Reading
+License: MIT
+AuthorName: Tavo
+AuthorEmail: robinliu721@qq.com
+SourceCode: https://github.com/OWNER/qiyuan
+IssueTracker: https://github.com/OWNER/qiyuan/issues
+Changelog: https://github.com/OWNER/qiyuan/releases
+
+AutoName: Qiyuan
+
+RepoType: git
+Repo: https://github.com/OWNER/qiyuan.git
+
+Builds:
+  - versionName: 0.1.2
+    versionCode: 6
+    commit: v0.1.2
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.1.2
+CurrentVersionCode: 6
