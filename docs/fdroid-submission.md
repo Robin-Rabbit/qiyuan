@@ -2,7 +2,7 @@
 
 ## 1. 前置条件
 
-- 公开源码仓库：`https://github.com/OWNER/qiyuan`
+- 公开源码仓库：`https://github.com/Robin-Rabbit/qiyuan`
 - Tag：`v0.1.2`（versionCode 6）
 - 许可证：MIT
 - 无预编译二进制、无广告 / 统计 SDK
@@ -14,7 +14,7 @@ F-Droid 通过 GitLab 上的 `fdroiddata` 仓库合并请求收录应用：
 
 1. 登录 <https://gitlab.com>。
 2. Fork <https://gitlab.com/fdroid/fdroiddata>。
-3. 在 fork 中新增 `metadata/app.tavo.rp.yml`，内容使用 `fdroid/app.tavo.rp.yml`，把 `OWNER` 替换为 GitHub 用户名。
+3. 在 fork 中新增 `metadata/app.tavo.rp.yml`，内容使用 `fdroid/app.tavo.rp.yml`，把 `Robin-Rabbit` 替换为 GitHub 用户名。
 4. 提交 Merge Request 到 `fdroid/fdroiddata` 的 `master`。
 5. 在 MR 描述中说明：
    - 应用名：启源 / Qiyuan

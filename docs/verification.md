@@ -46,8 +46,8 @@ shasum -a 256 启源-0.1.2.apk
 
 ## 发布渠道
 
-- GitHub Releases：<https://github.com/OWNER/qiyuan/releases>
-- 源码：<https://github.com/OWNER/qiyuan>
+- GitHub Releases：<https://github.com/Robin-Rabbit/qiyuan/releases>
+- 源码：<https://github.com/Robin-Rabbit/qiyuan>
 - APKMirror：提交审核中
 
 ## 说明

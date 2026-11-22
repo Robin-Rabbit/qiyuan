@@ -29,7 +29,7 @@
 
 ## 下载
 
-- GitHub Releases：<https://github.com/OWNER/qiyuan/releases>
+- GitHub Releases：<https://github.com/Robin-Rabbit/qiyuan/releases>
 - F-Droid：提交审核中；通过后可通过 F-Droid 客户端安装。
 
 APK 使用项目自签名证书；F-Droid 版本使用 F-Droid 自己的签名，两者不能互相覆盖安装。

@@ -3,14 +3,14 @@ Categories:
 License: MIT
 AuthorName: Tavo
 AuthorEmail: robinliu721@qq.com
-SourceCode: https://github.com/OWNER/qiyuan
-IssueTracker: https://github.com/OWNER/qiyuan/issues
-Changelog: https://github.com/OWNER/qiyuan/releases
+SourceCode: https://github.com/Robin-Rabbit/qiyuan
+IssueTracker: https://github.com/Robin-Rabbit/qiyuan/issues
+Changelog: https://github.com/Robin-Rabbit/qiyuan/releases
 
 AutoName: Qiyuan
 
 RepoType: git
-Repo: https://github.com/OWNER/qiyuan.git
+Repo: https://github.com/Robin-Rabbit/qiyuan.git
 
 Builds:
   - versionName: 0.1.2
