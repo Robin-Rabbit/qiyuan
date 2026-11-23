@@ -1,7 +1,7 @@
 /* ============================================================
    一、运行常量 · 世界预设 · 时间引擎 · 数据模型
    ============================================================ */
-const APP_VERSION = '0.1.5';
+const APP_VERSION = '0.1.4';
 const SCHEMA_VERSION = 4;
 const TICK_MS = 30000;          // 现实 30 秒一个时间线 tick
 const AUTONOMY_MIN = 30;        // 每推进 30 世界分钟，尝试一次 NPC 自主行为
@@ -520,6 +520,7 @@ function defaultDB() {
     activeId: null,
     cards: [],
     cardsReady: false,
+    presetsSeeded: false,
     stories: []
   };
 }
@@ -925,6 +926,7 @@ function loadDB() {
   db.ui = Object.assign(db.ui, obj.ui || {});
   db.cards = Array.isArray(obj.cards) ? obj.cards.map(normalizeCardRecord).filter(Boolean) : [];
   db.cardsReady = obj.cardsReady === true;
+  db.presetsSeeded = obj.presetsSeeded === true;
   db.stories = Array.isArray(obj.stories) ? obj.stories.map(normalizeStory) : [];
   db.activeId = obj.activeId && db.stories.some(s => s.id === obj.activeId) ? obj.activeId : (db.stories[0] ? db.stories[0].id : null);
   return db;

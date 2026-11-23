@@ -8,7 +8,7 @@
 |---|---|
 | 应用名 | 启源 / Qiyuan |
 | 包名 | `app.qiyuan.rp` |
-| 版本 | 0.1.5（versionCode 9） |
+| 版本 | 0.1.4（versionCode 8） |
 | 开发者 | Qiyuan |
 | 联系邮箱 | robinliu721@qq.com |
 
@@ -25,19 +25,19 @@
 
 | 版本 | SHA-256 |
 |---|---|
-| 0.1.5 | `d3dcb05e960e86b735f48c535dc1d117fd9b8927f86ecb8f6a16ae6431d0d5bd` |
+| 0.1.4 | `9a81a4f50ae1e8812f493527f0e6b2764d36d36fcd597aaed4c241251374d106` |
 
 ## 验证命令
 
 ```bash
 # 查看 APK 签名证书
-apksigner verify --print-certs 启源-0.1.5.apk
+apksigner verify --print-certs 启源-0.1.4.apk
 
 # 核对公钥证书指纹
 openssl x509 -in docs/qiyuan-release-cert.pem -noout -fingerprint -sha256
 
 # 校验 APK
-shasum -a 256 启源-0.1.5.apk
+shasum -a 256 启源-0.1.4.apk
 ```
 
 ## 应用内更新校验

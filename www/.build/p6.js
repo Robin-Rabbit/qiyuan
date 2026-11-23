@@ -1236,8 +1236,37 @@ function ensureCardForStory(s, source) {
   if (rec) s.cardId = rec.id;
   return rec;
 }
+/* 内置世界卡：首次运行写入卡库，之后允许用户编辑或删除。 */
+function cardFromPreset(p) {
+  const world = normalizeWorld(Object.assign({ presetId: p.id }, JSON.parse(JSON.stringify(p.world))));
+  const player = Object.assign(blankCharacter(p.player.name), JSON.parse(JSON.stringify(p.player)));
+  player.currentLocation = p.startLocation || '';
+  const npcs = (p.npcs || []).map(n => Object.assign(blankCharacter(n.name), JSON.parse(JSON.stringify(n)),
+    { id: uid('npc'), evolutionVersion: 1, lastEvolutionAt: '' }));
+  return worldCardForExport({ world, player, npcs, createdAt: nowTs() });
+}
+function seedPresetCards() {
+  if (DB.presetsSeeded) return false;
+  DB.presetsSeeded = true;
+  let changed = false;
+  PRESETS.forEach(p => {
+    const card = cardFromPreset(p);
+    const exists = cardRecordByContent(cardContentId(card)) ||
+      (DB.cards || []).some(rec => rec.card && (
+        rec.card.name === card.name ||
+        (rec.card.world && rec.card.world.name === p.world.name) ||
+        worldOnlyFingerprint(rec.card) === worldOnlyFingerprint(card)));
+    if (!exists) {
+      addCardRecord(card, 'preset');
+      changed = true;
+    }
+  });
+  if (changed) saveDB();
+  return changed;
+}
 /** 旧数据升级：给已有的实例补一张世界卡，但不覆盖用户已删除的卡。 */
 function migrateCards() {
+  seedPresetCards();
   let changed = false;
   // 旧版可能把剧情阶段写进了世界卡；载入后统一剥离，阶段只保留在各个实例里。
   (DB.cards || []).forEach(c => {
@@ -1631,13 +1660,15 @@ function pageCards(openId) {
       <span class="p-cover" style="${cardCoverStyle(card)}"><i>${esc(w.tag || w.category || '世界卡')}</i><b>${esc(cardDisplayName(card))}</b></span>
       <span class="p-meta"><em>${esc(w.description || card.description || '')}</em><i>${inst} 个实例 · ${(w.lore || []).length} 条设定 · ${(card.characters || []).length} 位 NPC</i></span>
     </button>`;
-  }).join('') : `<div class="card-empty"><p>世界卡库还是空的。</p></div>`;
+  }).join('') : `<div class="card-empty"><p>还没有世界卡。新建一张，或导入 .json 世界卡。</p></div>`;
   const { page, close } = pushPage({
-    title: '世界卡库', action: '', body: `
-      <button class="pbtn" id="libImport">导入世界卡</button>
+    title: '世界卡', action: '', body: `
+      <div class="two"><button class="pbtn" id="libNew">新建世界卡</button><button class="pbtn ghost" id="libImport">导入世界卡</button></div>
+      <div class="group">已有世界卡</div>
       <div class="preset-list card-lib-list">${list}</div>`
   });
   page.dataset.cardsPage = '1';
+  $('#libNew', page).onclick = () => openWizard();
   $('#libImport', page).onclick = () => pageImportCard();
   page.addEventListener('click', e => {
     const b = e.target.closest('[data-card-rec]');
@@ -1668,6 +1699,7 @@ function pageCardDetail(id) {
       ${instances.length ? `<div class="rowcard">${instances.map(s => `<button class="rrow" data-inst="${s.id}"><span class="rt">${esc(s.instanceName || s.world.name)}</span><span class="rv">${esc(s.instance.currentTime)}</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>`).join('')}</div>` : `<div class="card-empty"><p>还没有实例。</p></div>`}
       <button class="pbtn" id="cardFree">以自由模式创建实例</button>
       <button class="pbtn ghost" id="cardStory">以剧情模式创建实例</button>
+      <button class="pbtn ghost" id="cardEdit">编辑世界卡</button>
       <button class="pbtn ghost" id="cardExport">导出世界卡</button>
       <button class="pbtn danger-outline" id="cardDelete">删除世界卡</button>
     `
@@ -1676,6 +1708,7 @@ function pageCardDetail(id) {
   page.addEventListener('click', e => {
     if (e.target.closest('#cardFree')) { pageCardCreate(rec.id, 'free'); return; }
     if (e.target.closest('#cardStory')) { pageCardCreate(rec.id, 'story'); return; }
+    if (e.target.closest('#cardEdit')) { openWizard({ editCardId: rec.id }); return; }
     if (e.target.closest('#cardExport')) { exportCardRecord(rec); return; }
     if (e.target.closest('#cardDelete')) {
       openDialog({
@@ -1925,9 +1958,22 @@ function pageImport() {
 }
 
 /* ---------------- 向导 ---------------- */
-const WIZ = { step: 0, presetId: '', world: null, player: null, npcs: [], suffix: '', timeSpeed: 1, storyMode: false };
-function openWizard() {
-  WIZ.step = 0; WIZ.presetId = ''; WIZ.world = null; WIZ.player = null; WIZ.npcs = []; WIZ.suffix = ''; WIZ.timeSpeed = 1; WIZ.storyMode = false;
+const WIZ = { step: 0, presetId: '', world: null, player: null, npcs: [], suffix: '', timeSpeed: 1, storyMode: false, editingCardId: '' };
+function openWizard(opts) {
+  const o = opts || {};
+  WIZ.step = 0; WIZ.presetId = ''; WIZ.world = null; WIZ.player = null; WIZ.npcs = [];
+  WIZ.suffix = ''; WIZ.timeSpeed = 1; WIZ.storyMode = false;
+  WIZ.editingCardId = o.editCardId || '';
+  if (WIZ.editingCardId) {
+    const rec = cardRecordById(WIZ.editingCardId);
+    if (!rec) { toast('世界卡不存在', false); return; }
+    const t = storyFromCard(rec.card);
+    WIZ.world = t.world; WIZ.player = t.player; WIZ.npcs = t.npcs;
+    WIZ.presetId = (t.world && t.world.presetId) || 'custom';
+  } else {
+    wizardReset(null);
+    WIZ.presetId = 'custom';
+  }
   renderWizard();
 }
 function wizardReset(preset) {
@@ -1953,25 +1999,10 @@ function renderWizard() {
   const step = WIZ.step;
   let body = '', action = '下一步', canNext = true;
   if (step === 0) {
-    body = `<div class="wizard-hero"><div class="wiz-brand">启源 · 沉浸式虚拟世界体验</div><h2>从一个世界开始</h2></div>
-      <div class="group">游玩模式</div>
-      <div class="seg wiz-mode" id="wizMode">
-        <button data-v="free" class="${WIZ.storyMode ? '' : 'on'}">自由模式</button>
-        <button data-v="story" class="${WIZ.storyMode ? 'on' : ''}">剧情模式</button>
-      </div>
-      
-      <div class="preset-list">${PRESETS.map(p => `<button class="preset-card ${WIZ.presetId === p.id ? 'sel' : ''}" data-preset="${p.id}">
-        <span class="p-cover" style="${coverStyle(p.world)}"><i>${esc(p.tag)}</i><b>${esc(p.name)}</b></span>
-        <span class="p-meta"><em>${esc(p.world.desc)}</em><i>预设世界观 · ${p.npcs.length} 位 NPC · ${esc(p.world.startTime)}</i></span>
-      </button>`).join('')}
-      <button class="preset-card custom ${WIZ.presetId === 'custom' ? 'sel' : ''}" data-preset="custom">
-        <span class="p-cover" style="${coverStyle({ coverId: 'fog' })}"><i>完全本地 · 无审核</i><b>自定义世界</b></span>
-        <span class="p-meta"><em>从空白开始，自己写世界设定、历法与角色。</em><i>封面与卡片可随时更换</i></span>
-      </button></div>`;
-    canNext = !!WIZ.presetId;
-  } else if (step === 1) {
+
     const w = WIZ.world;
     body = `
+      ${WIZ.editingCardId ? `<div class="card-mode-note">正在编辑世界卡模板。保存后只影响以后新建的实例，已有实例的进度不会被改写。</div>` : ''}
       ${coverPickerHTML(w)}
       <div class="field"><label>世界名称</label><input class="input" id="wzName" value="${esc(w.name)}"></div>
       <div class="field"><label>世界描述（玩家可见）</label><textarea class="input" id="wzDesc" rows="3">${esc(w.desc)}</textarea></div>
@@ -1982,21 +2013,13 @@ function renderWizard() {
       ${fieldsEditor(w.fields, true)}
       <div class="field"><label>天道附加指令（可选，≤500 字）</label><textarea class="input" id="wzPrompt" rows="3">${esc(w.tiandaoPrompt)}</textarea></div>`;
     canNext = !!w.name && ((w.fields || []).some(f => String(f.value || '').trim()) || !!w.desc);
-  } else if (step === 2) {
+  } else if (step === 1) {
     body = `
       ${charForm(WIZ.player)}
       <div class="field"><label>起始位置（预设世界可留空，由天道生成）</label><input class="input" id="wzLoc2" value="${esc(WIZ.player.currentLocation)}"></div>
       ${WIZ.npcs.length ? `<div class="group">这个世界的原生 NPC</div><div class="rowcard">${WIZ.npcs.map(n => `<div class="rrow"><span class="npc-avatar">${esc(n.name[0] || '？')}</span><span class="rt">${esc(n.name)}<em style="display:block;font-size:12px;color:#8a8a8a;font-style:normal">${esc(n.occupation || '')} · ${esc(n.currentLocation || '位置未知')}</em></span></div>`).join('')}</div>` : ''}`;
     canNext = !!WIZ.player.name;
-  } else {
-    const name = (WIZ.world.name || '世界') + '-' + (WIZ.suffix || '新旅程');
-    body = `
-      <div class="field"><label>实例名称</label><div class="inst-name"><span>${esc(WIZ.world.name)}-</span><input class="input" id="wzSuffix" value="${esc(WIZ.suffix)}" placeholder="如 新手之旅"></div></div>
-      <div class="field"><label>时间流速（现实 1 分钟 = 世界 N 分钟）</label><div class="seg" id="wzSpeed">${[1, 2, 6, 12, 24].map(n => `<button data-v="${n}" class="${WIZ.timeSpeed === n ? 'on' : ''}">${n}×</button>`).join('')}</div></div>
-      ${llmWizardBlock()}
-      `;
-    action = '进入世界';
-    canNext = resolveLLMRef((WIZ.llm && WIZ.llm.tiandao) || (DB.config.llmAssign || {}).tiandao).length > 0;
+    action = WIZ.editingCardId ? '保存世界卡' : '创建世界卡';
   }
   const page = pushPage({ title: '', body, action, actionClass: 'grad', onAction: () => wizardNext() }).page;
   page.dataset.wizard = '1';
@@ -2004,15 +2027,15 @@ function renderWizard() {
   page.querySelector('.pbody').insertAdjacentHTML('afterbegin', `
     <div class="phead wizhead" style="display:flex">
       <button class="back" id="wizBack"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <div class="ptitle">${['选择世界', '世界设定', '玩家角色', '实例与模型'][step]}</div>
+      <div class="ptitle">${['世界设定', '玩家角色'][step]}</div>
       <button class="pact" id="wizNext">${action}</button>
     </div>
-    <div class="steps">${[0, 1, 2, 3].map(i => `<i class="${i <= step ? 'on' : ''}"></i>`).join('')}</div>`);
+    <div class="steps">${[0, 1].map(i => `<i class="${i <= step ? 'on' : ''}"></i>`).join('')}</div>`);
   const cp = $('.cover-pick', page);
   if (cp && WIZ.world) mountCoverPicker(cp, WIZ.world);
   const ap = $('.avatar-pick', page);
   if (ap && WIZ.player) mountAvatarPicker(ap, WIZ.player);
-  $('#wizBack', page).onclick = () => { if (WIZ.step === 0) page.remove(), overlayStack = overlayStack.filter(o => o.page !== page); else { collectWizard(); WIZ.step--; renderWizard(); } };
+  $('#wizBack', page).onclick = () => { if (WIZ.step === 0) { page.remove(); overlayStack = overlayStack.filter(o => o.page !== page); } else { collectWizard(); WIZ.step--; renderWizard(); } };
   $('#wizNext', page).onclick = () => wizardNext();
   page.addEventListener('click', e => {
     const lr = e.target.closest('.wz-llm-ref');
@@ -2043,23 +2066,15 @@ function renderWizard() {
       $$('#wzSpeed button', page).forEach(x => x.classList.remove('on'));
       sp.classList.add('on');
     }
-    const md = e.target.closest('#wizMode button');
-    if (md) {
-      WIZ.storyMode = md.dataset.v === 'story';
-      renderWizard();
-      toast(WIZ.storyMode ? '已选择剧情模式：创建后先生成阶段骨架' : '已选择自由模式');
-    }
     if (e.target.id === 'addField') { addFieldRow($('#fieldsEditor', page)); }
     const del = e.target.closest('.fdel, [data-del-field]');
     if (del) { del.closest('.frow').remove(); refreshFieldCounter(page); }
   });
-  if (step === 3) mountWizardLLM(page);
 }
 function collectWizard() {
   const page = $('.page[data-wizard]');
   if (!page) return;
-  if (WIZ.step === 0) return;
-  if (WIZ.step === 1) {
+  if (WIZ.step === 0) {
     WIZ.world.name = $('#wzName', page).value.trim() || WIZ.world.name;
     WIZ.world.desc = $('#wzDesc', page).value.trim();
     WIZ.world.calendarName = $('#wzCal', page).value.trim();
@@ -2067,25 +2082,15 @@ function collectWizard() {
     WIZ.world.locationSchema = $('#wzLoc', page).value.trim();
     WIZ.world.tiandaoPrompt = $('#wzPrompt', page).value.trim();
     WIZ.world.fields = readFieldsEditor(page);
-  } else if (WIZ.step === 2) {
+  } else if (WIZ.step === 1) {
     Object.assign(WIZ.player, readCharForm(page));
     const loc = $('#wzLoc2', page) && $('#wzLoc2', page).value.trim();
     if (loc) WIZ.player.currentLocation = loc;
-  } else if (WIZ.step === 3) {
-    WIZ.suffix = ($('#wzSuffix', page) && $('#wzSuffix', page).value.trim()) || '新旅程';
-    const sp = $('#wzSpeed button.on', page);
-    if (sp) WIZ.timeSpeed = +sp.dataset.v;
-    WIZ.llm = readWizardLLM(page);
   }
 }
 function wizardNext() {
   collectWizard();
-  if (WIZ.step === 0 && !WIZ.presetId) { toast('请选择一个世界或自定义', false); return; }
-  if (WIZ.step === 3) {
-    const ref = (WIZ.llm && WIZ.llm.tiandao) || (DB.config.llmAssign || {}).tiandao;
-    if (!resolveLLMRef(ref).length) { toast('请先配置并选择天道模型', false); return; }
-    finishWizard(); return;
-  }
+  if (WIZ.step >= 1) { finishWizard(); return; }
   WIZ.step++;
   renderWizard();
 }
@@ -2154,36 +2159,36 @@ function readWizardLLM(page) {
   return out;
 }
 function finishWizard() {
-  const L = WIZ.llm || DB.config.llmAssign || {};
-  const refs = {};
-  for (const k of ['tiandao', 'character', 'memory']) if (L[k]) refs[k] = L[k];
+  if (WIZ.step >= 1) collectWizard();
   const world = normalizeWorld(WIZ.world);
   world.presetId = WIZ.presetId;
-  const story = normalizeStory({
-    instanceName: world.name + '-' + (WIZ.suffix || '新旅程'),
-    world, player: WIZ.player, npcs: WIZ.npcs,
-    instance: { startTime: world.startTime, currentTime: world.startTime, timeStatus: 'running', timeSpeed: WIZ.timeSpeed, lastActiveTime: world.startTime },
-    messages: [], memories: [], bookmarks: [], events: [], working: { l1: [] },
-    llm: Object.keys(refs).length ? refs : null
+  const card = worldCardForExport({
+    world, player: WIZ.player, npcs: WIZ.npcs || [], createdAt: nowTs()
   });
-  story.seed = makeStorySeed(story.world, story.player, story.npcs, [], story.seed);
-  story.createdAt = nowTs(); story.updatedAt = nowTs();
-  ensureCardForStory(story, 'wizard');
-  DB.stories.unshift(story);
-  DB.activeId = story.id;
-  overlayStack = overlayStack.filter(o => { if (o.type === 'page' && o.page && o.page.dataset.wizard) { o.page.remove(); return false; } return true; });
-  saveDB(); renderAll(); closeDrawer('left');
-  toast('世界已创建');
-  if (WIZ.storyMode) { pageStoryPlan(story, { firstRun: true }); return; }
-  if (hasLLM('tiandao', story)) generateOpening(story);
-  else {
-    story.messages.push({ id: uid('m'), role: 'assistant', kind: 'narrative', speaker: '天道', text: world.opening || `${world.name}的故事从这里开始。`, ts: nowTs(), time: story.instance.currentTime, roundId: uid('r') });
-    saveDB(); renderAll();
+  let rec = WIZ.editingCardId ? cardRecordById(WIZ.editingCardId) : null;
+  if (rec) {
+    rec.card = JSON.parse(JSON.stringify(card));
+    stripCardStoryArc(rec.card);
+    rec.cardId = cardContentId(rec.card);
+    rec.updatedAt = nowTs();
+    saveDB();
+  } else {
+    rec = addCardRecord(card, 'created');
   }
+  overlayStack = overlayStack.filter(o => {
+    if (o.type === 'page' && o.page && o.page.dataset.wizard) { o.page.remove(); return false; }
+    return true;
+  });
+  closeDrawer('left');
+  renderAll();
+  if (!rec) { toast('保存失败', false); return; }
+  toast(WIZ.editingCardId ? '世界卡已更新' : '世界卡已创建');
+  WIZ.editingCardId = '';
+  pageCards(rec.id);
 }
 
-/* ---------------- 剧情模式：规划器与阶段面板 ---------------- */
 let STORY_PLAN_STATE = { busy: false, msg: '', issues: [] };
+
 function stageIssueRow(it) {
   return `<div class="stage-issue"><b>${esc(it.stage || '整体')}</b><span>${esc(it.problem || '')}</span>${it.fix ? `<em>建议：${esc(it.fix)}</em>` : ''}</div>`;
 }
@@ -3723,6 +3728,7 @@ function boot() {
     return;
   }
   encryptStoredSecrets();
+  seedPresetCards();
   applyBg();
   syncCharacterAges(activeStory());
   renderAll();

@@ -6,14 +6,14 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 |---|---|
 | App name | 启源 (Qiyuan) |
 | Package | app.qiyuan.rp |
-| Version | 0.1.5 |
+| Version | 0.1.4 |
 | Version code | 9 |
 | Developer | Qiyuan |
 | Category | Books & Reference（或 Entertainment） |
 | Requires Android | 8.0+ |
 | Architecture | Universal（无 native libs） |
-| APK | `android-app/dist/启源-0.1.5.apk` |
-| SHA-256 | `d3dcb05e960e86b735f48c535dc1d117fd9b8927f86ecb8f6a16ae6431d0d5bd` |
+| APK | `android-app/dist/启源-0.1.4.apk` |
+| SHA-256 | `9a81a4f50ae1e8812f493527f0e6b2764d36d36fcd597aaed4c241251374d106` |
 | Signing certificate SHA-256 | `d0452d999f5234db0e843ec4a33dbcb5ac258b010882d3b8e75e6b06de92e58f` |
 | Icon | `android-app/store/icon-512.png` |
 | Screenshots | `android-app/store/screenshots/*.png` |
@@ -37,5 +37,5 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 2. 进入 Upload / Submit 页面。
 3. 填写应用名、包名、版本、开发者、分类与更新日志。
 4. 上传 APK、图标与截图。
-5. 提交后等待人工审核；GitHub Releases：<https://github.com/Robin-Rabbit/qiyuan/releases/tag/v0.1.5>。
+5. 提交后等待人工审核；GitHub Releases：<https://github.com/Robin-Rabbit/qiyuan/releases/tag/v0.1.4>。
 6. 0.1.4 使用新包名与新签名证书，与 0.1.2 投稿不是同一应用标识，请在审核说明中注明。

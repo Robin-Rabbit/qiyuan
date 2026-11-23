@@ -1,1 +1,1 @@
-0.1.4: in-app update checks against GitHub Releases; verified download and install; daily automatic check; skip a version.
+0.1.4: in-app updates; unified world-card library for create/import/edit/start instance; wizard creates cards only; empty-state tap fixes.
