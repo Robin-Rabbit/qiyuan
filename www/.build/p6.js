@@ -2207,10 +2207,13 @@ function stageCognitionSummary(st) {
 }
 function stagePlanCard(st, s, opt) {
   const cur = s && storyModeOn(s) && s.story.stageId === st.id;
+  const active = s ? currentStage(s) : null;
+  const future = !active || st.order > active.order;
   return `<div class="stage-card ${cur ? 'cur' : ''}">
     <div class="stage-card-h"><span class="stage-badge">第 ${st.order} 阶段</span><b>${esc(st.name)}</b>
       <span class="stage-state">${st.detailStatus === 'detailed' ? '已细化' : '骨架'}</span></div>
     <p>${esc(clampText(st.summary || '（暂无摘要）', 260))}</p>
+    ${st.userBrief ? `<div class="stage-meta">玩家要求：${esc(clampText(st.userBrief, 120))}</div>` : ''}
     ${st.span ? `<div class="stage-meta">时间跨度：${esc(st.span)}</div>` : ''}
     <div class="stage-meta">推进条件：${esc(stageExitLabel(st))}</div>
     <div class="stage-cog">${stageCognitionSummary(st)}</div>
@@ -2218,9 +2221,10 @@ function stagePlanCard(st, s, opt) {
     ${opt && opt.editable ? `<div class="stage-tools">
       <button class="mini" data-stage-edit="${st.id}">编辑</button>
       ${st.detailStatus !== 'detailed' ? `<button class="mini" data-stage-detail="${st.id}">细化</button>` : ''}
+      ${future ? `<button class="mini" data-stage-gen="${st.id}">重生成</button>` : ''}
       <button class="mini" data-stage-up="${st.id}" title="上移">↑</button>
       <button class="mini" data-stage-down="${st.id}" title="下移">↓</button>
-      <button class="mini danger" data-stage-del="${st.id}">删除</button>
+      ${future ? `<button class="mini danger" data-stage-del="${st.id}">删除</button>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -2255,10 +2259,16 @@ function addBlankStage(s) {
 function deleteStage(s, id) {
   const arc = storyArcOf(s);
   if (!arc || arc.stages.length <= 1) { toast('至少保留一个阶段', false); return false; }
+  const target = arc.stages.find(st => st.id === id);
+  const cur = currentStage(s);
+  if (target && cur && target.order <= cur.order) { toast('已进入的阶段不能删除', false); return false; }
   arc.stages = arc.stages.filter(st => st.id !== id);
   arc.stages.forEach((st, k) => { st.order = k + 1; });
   s.world.storyArc = arc;
   if (s.story.stageId === id) s.story.stageId = arc.stages[0].id;
+  if (s.story.pendingStageId === id) s.story.pendingStageId = '';
+  if (s.story.advanceOfferedStage === id) s.story.advanceOfferedStage = '';
+  if (s.story.replanOfferedStage === id) s.story.replanOfferedStage = '';
   saveDB();
   return true;
 }
@@ -2266,18 +2276,20 @@ function storyPlanBody(s) {
   const arc = storyArcOf(s);
   const busy = STORY_PLAN_STATE.busy;
   const has = arc && arc.stages.length;
+  const req = STORY_PLAN_STATE.requirement != null ? STORY_PLAN_STATE.requirement : ((arc && arc.userBrief) || '');
   const head = `<div class="wizard-hero"><div class="wiz-brand">启源 · 剧情模式</div>
     <h2>${has ? '阶段骨架已生成' : '先让天道读懂这个世界'}</h2></div>`;
   let body = head;
   if (busy || STORY_PLAN_STATE.msg) body += `<div class="stage-plan-msg" id="planMsg">${esc(STORY_PLAN_STATE.msg || '正在处理…')}</div>`;
+  body += `<div class="field"><label>剧情要求（可选）</label><textarea class="input" id="planReq" rows="3" placeholder="例如：想更悬疑、节奏慢一点；第一阶段留在客栈，不要过早揭露身世。">${esc(req)}</textarea></div>`;
   if (!has) {
     body += `<button class="pbtn grad wide" id="planGo" ${busy ? 'disabled' : ''}>${busy ? '生成中…' : '生成剧情骨架'}</button>
-      
+      <button class="pbtn ghost wide" id="planSingle" style="margin-top:10px" ${busy ? 'disabled' : ''}>只生成一个阶段</button>
       <button class="pbtn ghost wide" id="planFree" style="margin-top:10px">跳过，改用自由模式</button>`;
     return body;
   }
   body += `<div class="group">阶段列表</div><div class="stage-plan-list">${arc.stages.map(st => stagePlanCard(st, s, { editable: true })).join('')}</div>
-    <div class="stage-actions"><button class="pbtn ghost" id="planAddStage">＋ 新增阶段</button><button class="pbtn ghost" id="planVisibility">世界可见性</button></div>`;
+    <div class="stage-actions"><button class="pbtn ghost" id="planSingle" ${busy ? 'disabled' : ''}>＋ 单独生成阶段</button><button class="pbtn ghost" id="planAddStage">＋ 新增空白阶段</button><button class="pbtn ghost" id="planVisibility">世界可见性</button></div>`;
   if (arc.auditNotes && arc.auditNotes.length) {
     body += `<div class="group">世界审计备注</div><div class="stage-notes">${arc.auditNotes.map(n => `<div class="stage-note">${esc(n)}</div>`).join('')}</div>`;
   }
@@ -2354,30 +2366,50 @@ function pageWorldVisibility(s, onDone) {
   if (allStage) allStage.onclick = () => setAll('stage');
 }
 function pageStoryPlan(s, opt) {
-  STORY_PLAN_STATE = { busy: false, msg: '', issues: (s.story && s.story._checkIssues) || [] };
+  STORY_PLAN_STATE = { busy: false, msg: '', issues: (s.story && s.story._checkIssues) || [], requirement: ((s.world.storyArc && s.world.storyArc.userBrief) || '') };
   const page = pushPage({ title: '剧情规划', body: storyPlanBody(s), action: '' }).page;
   $('.pact', page).style.display = 'none';
   const body = $('.pbody', page);
   const draw = () => { body.innerHTML = storyPlanBody(s); };
   const startPlan = async () => {
     if (STORY_PLAN_STATE.busy) return;
-    STORY_PLAN_STATE = { busy: true, msg: '正在审计世界设定…', issues: [] };
+    const reqEl = $('#planReq', page);
+    const requirement = (reqEl ? reqEl.value : (STORY_PLAN_STATE.requirement || '')).trim();
+    STORY_PLAN_STATE = { busy: true, msg: '正在审计世界设定…', issues: [], requirement };
     draw();
     try {
       await planStoryArc(s, {
+        requirement,
         onProgress: msg => { STORY_PLAN_STATE.msg = msg; draw(); }
       });
-      STORY_PLAN_STATE = { busy: false, msg: '阶段骨架已生成，请确认或修改。', issues: (s.world.storyArc && s.world.storyArc.issues) || [] };
+      STORY_PLAN_STATE = { busy: false, msg: '阶段骨架已生成，请确认或修改。', issues: (s.world.storyArc && s.world.storyArc.issues) || [], requirement };
       saveDB(); draw();
       toast('剧情骨架已生成');
     } catch (e) {
-      STORY_PLAN_STATE = { busy: false, msg: '生成失败：' + e.message, issues: [] };
+      STORY_PLAN_STATE = { busy: false, msg: '生成失败：' + e.message, issues: [], requirement };
       draw();
       toast('生成失败：' + e.message, false);
     }
   };
+  page.addEventListener('input', e => {
+    if (e.target && e.target.id === 'planReq') STORY_PLAN_STATE.requirement = e.target.value;
+  });
   page.addEventListener('click', async e => {
     if (e.target.closest('#planGo') || e.target.closest('#planRegen')) { startPlan(); return; }
+    if (e.target.closest('#planSingle')) {
+      const reqEl = $('#planReq', page);
+      pageStageGenerate(s, {
+        requirement: (reqEl ? reqEl.value : '').trim(),
+        replaceFuture: !!currentStage(s),
+        refresh: draw
+      });
+      return;
+    }
+    const gen = e.target.closest('[data-stage-gen]');
+    if (gen) {
+      pageStageGenerate(s, { stageId: gen.dataset.stageGen, refresh: draw });
+      return;
+    }
     if (e.target.closest('#planVisibility') || e.target.closest('#storyVisibility')) {
       pageWorldVisibility(s, draw);
       return;
@@ -2486,7 +2518,7 @@ function storyPanelBody(s) {
     </div>`;
   }
   body += `<div class="group">全部阶段</div><div class="stage-plan-list">${arc.stages.map(st => stagePlanCard(st, s, { editable: true })).join('')}</div>
-    <div class="stage-actions"><button class="pbtn ghost" id="storyAddStage">＋ 新增阶段</button><button class="pbtn ghost" id="storyVisibility">世界可见性</button></div>
+    <div class="stage-actions"><button class="pbtn ghost" id="storySingle">＋ 单独生成阶段</button><button class="pbtn ghost" id="storyAddStage">＋ 新增空白阶段</button><button class="pbtn ghost" id="storyVisibility">世界可见性</button></div>
     <div class="stage-plan-actions">
       ${on ? '<button class="pbtn ghost wide" id="storyOff">关闭剧情模式</button>' : '<button class="pbtn grad wide" id="storyOn">开启剧情模式</button>'}
       <label class="stage-auto"><input type="checkbox" id="storyAuto" ${s.story.autoAdvance === false ? '' : 'checked'}> 条件满足时弹出无剧透预览，由我确认后进入下一阶段</label>
@@ -2533,6 +2565,79 @@ function pageFactAdd(s, onDone) {
     }
   });
 }
+/* 生成单个阶段：可替换指定阶段，或替换当前之后的所有未进入阶段 */
+function pageStageGenerate(s, opt) {
+  const o = opt || {};
+  const arc0 = storyArcOf(s) || normalizeStoryArc(s.world.storyArc || {});
+  const active = currentStage(s);
+  const target = o.stageId ? arc0.stages.find(st => st.id === o.stageId) : null;
+  const canReplaceFuture = !target && !!active;
+  let mode = target ? 'replace' : (canReplaceFuture ? 'replaceFuture' : 'append');
+  let busy = false;
+  const { page, close } = pushPage({
+    title: target ? '重新生成阶段' : '生成单个阶段',
+    action: '生成', actionClass: 'grad',
+    onAction: () => run()
+  });
+  const priorCount = target ? target.order - 1 : (active ? active.order : arc0.stages.length);
+  const draw = () => {
+    $('.pbody', page).innerHTML = `
+      ${target ? `<div class="card-mode-note">将替换：第 ${target.order} 阶段「${esc(target.name)}」。此前 ${priorCount} 个阶段会作为生成依据。</div>` : ''}
+      ${canReplaceFuture ? `<div class="group">生成范围</div>
+        <div class="seg" id="genMode">
+          <button data-mode="replaceFuture" class="${mode === 'replaceFuture' ? 'on' : ''}">替换未进入阶段</button>
+          <button data-mode="append" class="${mode === 'append' ? 'on' : ''}">追加到末尾</button>
+        </div>
+        <div class="card-mode-note">替换会删除当前阶段之后所有尚未进入的阶段，再生成一个新阶段。</div>` : ''}
+      <div class="field"><label>阶段名提示（可选）</label><input class="input" id="genName" value="${esc(o.nameHint || (target ? target.name : ''))}" placeholder="不填则由模型命名"></div>
+      <div class="field"><label>对这个阶段的要求</label><textarea class="input" id="genReq" rows="5" placeholder="例如：这一阶段留在临江镇，重点写掌柜的试探；不要出现河神，不要揭露主角身世。">${esc(o.requirement || (target ? target.userBrief : '') || '')}</textarea></div>
+      <div class="stage-plan-msg" id="genMsg" hidden></div>`;
+    const seg = $('#genMode', page);
+    if (seg) seg.addEventListener('click', e => {
+      const b = e.target.closest('button[data-mode]'); if (!b) return;
+      mode = b.dataset.mode;
+      $$('button', seg).forEach(x => x.classList.toggle('on', x.dataset.mode === mode));
+    });
+  };
+  draw();
+  const run = async () => {
+    if (busy) return;
+    const req = (($('#genReq', page) || {}).value || '').trim();
+    const nameHint = (($('#genName', page) || {}).value || '').trim();
+    busy = true;
+    const msg = $('#genMsg', page);
+    if (msg) { msg.hidden = false; msg.textContent = '正在生成阶段…'; }
+    try {
+      const generated = await planSingleStage(s, {
+        stageId: target ? target.id : '',
+        requirement: req,
+        nameHint,
+        afterOrder: target ? (target.order - 1) : (mode === 'replaceFuture' && active ? active.order : arc0.stages.length)
+      });
+      if (mode === 'replaceFuture' && active) {
+        const arc2 = storyArcOf(s);
+        if (arc2) {
+          arc2.stages = arc2.stages.filter(st => st.id === generated.id || st.order <= active.order);
+          arc2.stages = uniqueStageIds(arc2.stages);
+          s.world.storyArc = arc2;
+          saveDB();
+        }
+      }
+      busy = false;
+      saveDB();
+      toast('阶段已生成');
+      close();
+      if (o.refresh) o.refresh();
+      renderAll();
+    } catch (e) {
+      busy = false;
+      if (msg) { msg.hidden = false; msg.textContent = '生成失败：' + e.message; }
+      toast('生成失败：' + e.message, false);
+    }
+  };
+  return { page, close };
+}
+
 function pageStory(s) {
   if (!s) return;
   const page = pushPage({ title: '剧情阶段', body: storyPanelBody(s), action: '' }).page;
@@ -2558,7 +2663,10 @@ function pageStory(s) {
       return;
     }
     if (e.target.closest('#storyVisibility')) { pageWorldVisibility(s, draw); return; }
+    if (e.target.closest('#storySingle')) { pageStageGenerate(s, { replaceFuture: true, refresh: draw }); return; }
     if (e.target.closest('#storyAddStage')) { addBlankStage(s); draw(); return; }
+    const gen = e.target.closest('[data-stage-gen]');
+    if (gen) { pageStageGenerate(s, { stageId: gen.dataset.stageGen, refresh: draw }); return; }
     const up = e.target.closest('[data-stage-up]');
     if (up) { moveStage(s, up.dataset.stageUp, -1); draw(); return; }
     const down = e.target.closest('[data-stage-down]');

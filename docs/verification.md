@@ -8,7 +8,7 @@
 |---|---|
 | 应用名 | 启源 / Qiyuan |
 | 包名 | `app.tavo.rp` |
-| 版本 | 0.1.2（versionCode 6） |
+| 版本 | 0.1.3（versionCode 7） |
 | 开发者 | Tavo |
 | 联系邮箱 | robinliu721@qq.com |
 
@@ -23,19 +23,19 @@
 
 | 版本 | SHA-256 |
 |---|---|
-| 0.1.2 | `3a3e4ce96786da8396905705723561f466fce128446ef7df69fd10f2fcc30cf7` |
+| 0.1.3 | `86ec3cf306e2bb2468f28fc65606e65bf08de53c9db7b52f450429c76ecc619b` |
 
 ## 验证命令
 
 ```bash
 # 查看 APK 签名证书
-apksigner verify --print-certs 启源-0.1.2.apk
+apksigner verify --print-certs 启源-0.1.3.apk
 
 # 核对公钥证书指纹
 openssl x509 -in docs/qiyuan-release-cert.pem -noout -fingerprint -sha256
 
 # 校验 APK
-shasum -a 256 启源-0.1.2.apk
+shasum -a 256 启源-0.1.3.apk
 ```
 
 预期证书 SHA-256：

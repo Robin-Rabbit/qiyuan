@@ -1,0 +1,1 @@
+0.1.3: story requirements; generate any future stage individually from world, prior stages and player brief; entered stages are protected.

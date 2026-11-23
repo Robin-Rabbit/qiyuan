@@ -1,7 +1,7 @@
 /* ============================================================
    一、运行常量 · 世界预设 · 时间引擎 · 数据模型
    ============================================================ */
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 const SCHEMA_VERSION = 4;
 const TICK_MS = 30000;          // 现实 30 秒一个时间线 tick
 const AUTONOMY_MIN = 30;        // 每推进 30 世界分钟，尝试一次 NPC 自主行为
@@ -681,6 +681,7 @@ function normalizeStoryStage(raw, i) {
     id: st.id || ('st' + (i + 1)),
     order: i + 1,
     name: String(st.name || st.title || st.stage_name || st['阶段名'] || st['名称'] || ('第 ' + (i + 1) + ' 阶段')),
+    userBrief: String(st.userBrief || st.user_brief || st['玩家要求'] || ''),
     summary: String(st.summary || st.desc || st.description || st.stage_summary || st['阶段摘要'] || st['摘要'] || ''),
     span: String(st.span || st.when || st.time || st['时间跨度'] || ''),
     exit: normalizeStageExit(exitRaw),
@@ -742,6 +743,7 @@ function normalizeStoryArc(raw) {
     enabled: !!a.enabled && stages.length > 0,
     status: stages.length ? (a.status === 'ready' ? 'ready' : 'draft') : 'draft',
     logline: String(a.logline || ''),
+    userBrief: String(a.userBrief || a.user_brief || a['玩家要求'] || ''),
     publicLore: Array.isArray(a.publicLore || a.public_lore) ? (a.publicLore || a.public_lore).map(String) : [],
     fieldMeta: meta,
     includeRaw: a.includeRaw === true,

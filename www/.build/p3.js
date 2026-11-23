@@ -1020,8 +1020,9 @@ ${paths.map(p => '- ' + p).join('\n') || '（无）'}
 ${clampText(worldMarkdown(s), 12000)}`
   };
 }
-function arcSkeletonPrompt(s, audit) {
+function arcSkeletonPrompt(s, audit, requirement) {
   const pub = audit && Array.isArray(audit.public_lore) ? audit.public_lore.join('、') : '（未分类）';
+  const req = String(requirement || '').trim();
   return {
     system: `你是剧情规划器的「阶段骨架」模块。请为一个长线互动世界设计 3–5 个阶段。阶段是软规划，不是强制剧本；玩家可以偏离，世界必须自洽。
 只输出一个 JSON 对象，不要 Markdown、不要解释：
@@ -1057,7 +1058,10 @@ function arcSkeletonPrompt(s, audit) {
 玩家当前身份：${s.player.occupation || '未设定'}；能力：${s.player.abilities || '未设定'}；目标：${s.player.currentGoal || '未设定'}
 当前世界时间：${s.instance.currentTime}
 世界设定：
-${clampText(worldMarkdown(s), 7000)}`
+${clampText(worldMarkdown(s), 7000)}${req ? `
+
+玩家对整条剧情的明确要求（在不违背世界基础设定与已发生事实的前提下优先满足）：
+${req}` : ''}`
   };
 }
 function stageDetailPrompt(s, st) {
@@ -1071,10 +1075,13 @@ function stageDetailPrompt(s, st) {
 - growth 给出玩家与 1–3 位关键 NPC 的预期节点（软规划）。
 - cognition 五轴写清楚，forbidden 至少 3 条。
 - forbidden_terms 给出 3–8 个具体禁忌词。
-- 不得与已发生事实冲突。`,
+- 不得与已发生事实冲突。
+- 若玩家对本阶段有明确要求，必须优先满足；不得用模板化内容忽略它。`,
     user: `世界：${s.world.name}
 当前阶段骨架：
 ${JSON.stringify(st, null, 2)}
+玩家对本阶段的要求：${st.userBrief || '（无）'}
+整体剧情要求：${(s.world.storyArc && s.world.storyArc.userBrief) || '（无）'}
 玩家当前状态：${charProfile(s.player, '')}
 当前世界时间：${s.instance.currentTime}
 世界设定（当前可见）：
@@ -1255,6 +1262,7 @@ async function planStoryArc(s, opt) {
     return String((res && res.text) || '');
   };
   const arc = normalizeStoryArc(s.world.storyArc || {});
+  const requirement = String(o.requirement != null ? o.requirement : (arc.userBrief || '')).trim();
 
   log('正在审计世界设定…');
   let audit = null;
@@ -1277,7 +1285,7 @@ async function planStoryArc(s, opt) {
   let payload = null;
   let skeletonText = '';
   try {
-    const prompt = arcSkeletonPrompt(s, audit);
+    const prompt = arcSkeletonPrompt(s, audit, requirement);
     skeletonText = await callRaw(prompt, 3000, 0.65);
     payload = extractArcPayload(skeletonText);
     if (!payload) {
@@ -1317,6 +1325,7 @@ async function planStoryArc(s, opt) {
 
   arc.version = (Number(arc.version) || 1) + 1;
   arc.logline = String(payload.logline || arc.logline || '');
+  arc.userBrief = requirement;
   arc.stages = uniqueStageIds(stages);
   if (usedFallback) {
     arc.auditNotes = (arc.auditNotes || []).concat(['阶段骨架生成失败，已创建可编辑的「开篇」阶段。请补充阶段或重新生成。']);
@@ -1350,6 +1359,97 @@ async function planStoryArc(s, opt) {
   saveDB();
   return arc;
 }
+
+function singleStagePrompt(s, o) {
+  const opts = o || {};
+  const prior = (opts.priorStages || []);
+  const priorText = prior.length ? prior.map(st => `第 ${st.order} 阶段「${st.name}」：${st.summary || ''}\n认知边界：${JSON.stringify(st.cognition || {})}\n出场限制：${JSON.stringify(st.cast || {})}`).join('\n\n') : '（无；这是第一个阶段）';
+  const req = String(opts.requirement || '').trim();
+  const arc = s.world.storyArc || {};
+  return {
+    system: `你是剧情规划器的「单个阶段」模块。请只为一个长线互动世界生成一个阶段骨架，不要输出整条剧情线，也不要输出数组。
+只输出一个 JSON 对象，不要 Markdown、不要解释：
+{"stage": {
+  "name": "阶段名（2–8 字）",
+  "summary": "本阶段玩家所处位置、核心冲突与可感知的世界状态（60–110 字）",
+  "span": "大致时间跨度，如 第 1–30 日",
+  "exit": { "any": [ { "worldMinutes": 43200 }, { "event": "关键事件名" } ] },
+  "cognition": {
+    "realm": "当前境界/能力上限", "social": "社会阶层与身份",
+    "geography": ["可触及地点"], "known_factions": ["已知势力"],
+    "forbidden": ["现阶段不可理解或不可知道的事"], "rumors": ["可能是错的传闻"]
+  },
+  "cast": { "allowed_tiers": ["可出场层级"], "forbidden": ["本阶段不得直接出场的角色/势力"] },
+  "world_events": [ { "title": "事件名", "when": "第 10–20 日", "trigger": "触发方式", "importance": 6 } ],
+  "forbidden_terms": ["一旦出现就会剧透的具体词"]
+}}
+硬性要求：
+- 只写骨架，不要写 setting_delta、growth、reveals；这些会在后续「细化」时补齐。
+- 必须承接「既往阶段」的结束状态，不得与已发生事实矛盾；不得提前写出后续阶段的真相。
+- 玩家对本阶段的明确要求优先级最高；在不违背世界基础设定与既往阶段的前提下尽量满足。
+- 认知边界必须与既往阶段连续，只能逐步放宽，不能跳级。
+- forbidden_terms 要具体（人名、地名、术语），不要写抽象描述。
+- 至少有一个 exit 条件；worldMinutes 从故事开始累计。`,
+    user: `世界名称：${s.world.name}
+世界描述：${s.world.desc || '（无）'}
+整体剧情线：${arc.logline || '（未设定）'}
+整体剧情要求：${arc.userBrief || '（无）'}
+目标阶段序号：第 ${opts.targetOrder || (prior.length + 1)} 阶段
+目标阶段名提示：${opts.nameHint || '（无，可自行命名）'}
+
+既往阶段（必须承接，不得矛盾）：
+${clampText(priorText, 5000)}
+
+玩家对本阶段的明确要求：
+${req || '（无额外要求，请依据世界与既往阶段自然推进）'}
+
+玩家当前状态：${charProfile(s.player, '')}
+当前世界时间：${s.instance.currentTime}
+世界设定（当前可见）：
+${clampText(storyWorldMarkdown(s), 6500)}`
+  };
+}
+/** 单独生成一个阶段骨架：可替换既有阶段，或追加到指定位置之后。 */
+async function planSingleStage(s, opt) {
+  const o = opt || {};
+  if (!s) throw new Error('没有可规划的实例');
+  if (!hasLLM('tiandao', s)) throw new Error('请先配置天道模型');
+  const arc = storyArcOf(s) || normalizeStoryArc(s.world.storyArc || {});
+  const target = o.stageId ? arc.stages.find(st => st.id === o.stageId) : null;
+  const afterOrder = o.afterOrder != null ? Number(o.afterOrder) : (currentStage(s) ? currentStage(s).order : arc.stages.length);
+  const targetOrder = target ? target.order : Math.max(0, afterOrder) + 1;
+  const prior = arc.stages.filter(st => st.order < targetOrder && st.id !== (target && target.id));
+  const p = singleStagePrompt(s, {
+    priorStages: prior,
+    requirement: o.requirement,
+    nameHint: o.nameHint,
+    targetOrder
+  });
+  const res = await llmChat([
+    { role: 'system', content: p.system },
+    { role: 'user', content: p.user }
+  ], { kind: 'tiandao', story: s, maxTokens: 1800, temperature: 0.65, stream: false });
+  const j = extractJSON(res.text || '');
+  let one = j && (j.stage || j);
+  if (!one && j && Array.isArray(j.stages) && j.stages.length) one = j.stages[0];
+  if (!one || (!one.name && !one.summary)) throw new Error('模型没有返回可用的阶段骨架');
+  const merged = normalizeStoryStage(Object.assign({}, target || {}, one), targetOrder - 1);
+  merged.id = target ? target.id : ('st' + targetOrder + '_' + Math.random().toString(36).slice(2, 5));
+  merged.order = targetOrder;
+  merged.detailStatus = 'skeleton';
+  merged.userBrief = String(o.requirement || '');
+  let stages = arc.stages.slice();
+  if (target) stages = stages.map(st => st.id === target.id ? merged : st);
+  else stages.push(merged);
+  arc.stages = uniqueStageIds(stages);
+  arc.status = arc.stages.length ? 'ready' : 'draft';
+  if (!arc.logline && arc.stages.length) arc.logline = arc.stages[0].summary.slice(0, 40);
+  s.world.storyArc = arc;
+  saveDB();
+  if (typeof dbgEnabled === 'function' && dbgEnabled()) dbgLog({ type: 'stage_generate', storyId: s.id, stageId: merged.id, order: merged.order, requirement: String(o.requirement || '').slice(0, 200) });
+  return merged;
+}
+
 /** 阶段切换后复查一致性，结果写回 world.storyArc.issues（持久化）。 */
 async function recheckArcConsistency(s) {
   if (!s || !storyModeOn(s) || !hasLLM('tiandao', s)) return [];
@@ -1402,8 +1502,8 @@ async function replanFutureStages(s) {
   const cur = currentStage(s);
   const keep = arc.stages.filter(st => !cur || st.order <= cur.order);
   const done = keep.map(st => `第${st.order}阶段「${st.name}」：${st.summary}`).join('\n');
-  const p = arcSkeletonPrompt(s, null);
-  p.system = p.system.replace('请为一个长线互动世界设计 3–6 个阶段。', `请从当前进度继续设计后续 2–4 个阶段。已发生的阶段不可改写。`);
+  const p = arcSkeletonPrompt(s, null, arc.userBrief);
+  p.system = p.system.replace('请为一个长线互动世界设计 3–5 个阶段。', `请从当前进度继续设计后续 2–4 个阶段。已发生的阶段不可改写。`);
   p.user += `\n\n已发生 / 当前阶段（必须保持兼容，不得与之矛盾）：\n${done}\n\n当前玩家状态：${charProfile(s.player, '')}\n当前时间：${s.instance.currentTime}`;
   const res = await llmChat([
     { role: 'system', content: p.system },
