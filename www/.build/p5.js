@@ -374,7 +374,7 @@ function renderRight() {
     </div>
     <div class="rgroup">关于</div>
     <div class="rowcard">
-      <button class="rrow" data-act="about"><span class="rt">启源</span><span class="rv">v${APP_VERSION}</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="rrow" data-act="about"><span class="rt">启源</span><span class="rv">v${esc(updateVersionName())}</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     </div>
   `;
 }

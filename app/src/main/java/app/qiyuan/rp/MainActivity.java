@@ -1,15 +1,19 @@
-package app.tavo.rp;
+package app.qiyuan.rp;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
@@ -27,6 +31,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import androidx.webkit.WebViewAssetLoader;
+import androidx.core.content.FileProvider;
 
 import org.json.JSONObject;
 
@@ -41,6 +46,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -122,28 +128,28 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                Log.i("TavoRP", "onPageFinished " + url);
+                Log.i("QiyuanRP", "onPageFinished " + url);
                 pushInsets();
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request,
                                         android.webkit.WebResourceError error) {
-                Log.e("TavoRP", "onReceivedError " + request.getUrl() + " -> "
+                Log.e("QiyuanRP", "onReceivedError " + request.getUrl() + " -> "
                         + error.getErrorCode() + " " + error.getDescription());
             }
 
             @Override
             public void onReceivedHttpError(WebView view, WebResourceRequest request,
                                             WebResourceResponse response) {
-                Log.e("TavoRP", "onReceivedHttpError " + request.getUrl() + " -> " + response.getStatusCode());
+                Log.e("QiyuanRP", "onReceivedHttpError " + request.getUrl() + " -> " + response.getStatusCode());
             }
         });
 
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage msg) {
-                Log.d("TavoRP", msg.message() + " @" + msg.sourceId() + ":" + msg.lineNumber());
+                Log.d("QiyuanRP", msg.message() + " @" + msg.sourceId() + ":" + msg.lineNumber());
                 return true;
             }
 
@@ -171,7 +177,7 @@ public class MainActivity extends Activity {
                     startActivityForResult(Intent.createChooser(intent, "选择文件"), FILE_CHOOSER_REQ);
                     return true;
                 } catch (Exception e) {
-                    Log.w("TavoRP", "file chooser failed", e);
+                    Log.w("QiyuanRP", "file chooser failed", e);
                     filePathCallback = null;
                     return false;
                 }
@@ -181,6 +187,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new LlmBridge(), "AndroidLLM");
         web.addJavascriptInterface(new SecureBridge(), "AndroidSecure");
         web.addJavascriptInterface(new FileBridge(), "AndroidFile");
+        web.addJavascriptInterface(new UpdateBridge(), "AndroidUpdate");
 
         // 把系统栏高度交给前端，前端通过 --safe-top / --safe-bottom 使用
         web.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -248,7 +255,7 @@ public class MainActivity extends Activity {
     }
 
     /** 原生 HTTP 桥：绕过 WebView 的 CORS 限制，直接请求 LLM API。 */
-    private static final String SECRET_ALIAS = "tavo_llm_secret_v1";
+    private static final String SECRET_ALIAS = "qiyuan_llm_secret_v1";
 
     private SecretKey getSecretKey() throws Exception {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
@@ -305,7 +312,7 @@ public class MainActivity extends Activity {
                 }
                 return "saved";
             } catch (Exception e) {
-                Log.w("TavoRP", "saveText failed", e);
+                Log.w("QiyuanRP", "saveText failed", e);
                 return "err:" + e.getMessage();
             }
         }
@@ -323,7 +330,7 @@ public class MainActivity extends Activity {
                 return "enc:" + Base64.encodeToString(iv, Base64.NO_WRAP) + ":"
                         + Base64.encodeToString(ct, Base64.NO_WRAP);
             } catch (Exception e) {
-                Log.w("TavoRP", "encrypt failed", e);
+                Log.w("QiyuanRP", "encrypt failed", e);
                 return plain;
             }
         }
@@ -341,7 +348,7 @@ public class MainActivity extends Activity {
                 c.init(Cipher.DECRYPT_MODE, getSecretKey(), new GCMParameterSpec(128, iv));
                 return new String(c.doFinal(ct), StandardCharsets.UTF_8);
             } catch (Exception e) {
-                Log.w("TavoRP", "decrypt failed", e);
+                Log.w("QiyuanRP", "decrypt failed", e);
                 return "";
             }
         }
@@ -586,6 +593,270 @@ public class MainActivity extends Activity {
                 if (b != null && "text".equals(b.optString("type"))) sb.append(b.optString("text"));
             }
             return sb.toString();
+        }
+    }
+
+    /**
+     * 应用内更新：检查 GitHub Releases、下载 APK、校验签名后交给系统安装器。
+     * 只接受 GitHub 域名；APK 必须与当前应用同包名、同签名，且版本号更高。
+     */
+    public class UpdateBridge {
+        private static final String EXPECTED_CERT =
+                "d0452d999f5234db0e843ec4a33dbcb5ac258b010882d3b8e75e6b06de92e58f";
+        private static final String UPDATE_DIR = "updates";
+        private static final long MAX_JSON = 1024 * 1024;
+
+        @JavascriptInterface
+        public String info() {
+            try {
+                PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+                JSONObject o = new JSONObject();
+                o.put("versionName", pi.versionName == null ? "" : pi.versionName);
+                o.put("versionCode", Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode);
+                o.put("canInstall", Build.VERSION.SDK_INT < 26
+                        || getPackageManager().canRequestPackageInstalls());
+                return o.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void get(final String id, final String url) {
+            new Thread(() -> {
+                String body = "";
+                String error = "";
+                try {
+                    if (!allowed(url)) throw new IllegalArgumentException("不支持的更新地址");
+                    HttpURLConnection conn = open(url, "application/vnd.github+json");
+                    try {
+                        int status = conn.getResponseCode();
+                        if (status != 200) throw new java.io.IOException("HTTP " + status);
+                        body = read(conn.getInputStream(), MAX_JSON);
+                    } finally {
+                        conn.disconnect();
+                    }
+                } catch (Exception e) {
+                    error = message(e);
+                }
+                final String b = body, er = error;
+                postJs("window.__updateHttpResult(" + JSONObject.quote(id) + ","
+                        + JSONObject.quote(b) + "," + JSONObject.quote(er) + ");");
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void download(final String id, final String url, final String fileName) {
+            new Thread(() -> {
+                String path = "";
+                String error = "";
+                File target = null;
+                try {
+                    if (!allowed(url)) throw new IllegalArgumentException("不支持的下载地址");
+                    File dir = new File(getCacheDir(), UPDATE_DIR);
+                    if (dir.exists()) {
+                        File[] old = dir.listFiles();
+                        if (old != null) {
+                            for (File f : old) {
+                                if (f.isFile()) f.delete();
+                            }
+                        }
+                    }
+                    if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("无法创建下载目录");
+                    String safe = fileName == null ? "qiyuan-update.apk"
+                            : fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+                    if (!safe.toLowerCase().endsWith(".apk")) safe = safe + ".apk";
+                    target = new File(dir, safe);
+                    HttpURLConnection conn = open(url, "application/vnd.android.package-archive");
+                    try {
+                        int status = conn.getResponseCode();
+                        if (status != 200) throw new java.io.IOException("HTTP " + status);
+                        long total = conn.getContentLengthLong();
+                        long loaded = 0;
+                        long last = 0;
+                        try (InputStream is = conn.getInputStream();
+                             FileOutputStream fos = new FileOutputStream(target)) {
+                            byte[] buf = new byte[65536];
+                            int n;
+                            while ((n = is.read(buf)) != -1) {
+                                fos.write(buf, 0, n);
+                                loaded += n;
+                                if (loaded - last >= 262144 || (total > 0 && loaded >= total)) {
+                                    last = loaded;
+                                    final long l = loaded, t = total;
+                                    postJs("window.__updateProgress(" + JSONObject.quote(id)
+                                            + "," + l + "," + t + ");");
+                                }
+                            }
+                        }
+                        String bad = verify(target);
+                        if (bad != null) throw new java.io.IOException(bad);
+                        path = target.getAbsolutePath();
+                    } finally {
+                        conn.disconnect();
+                    }
+                } catch (Exception e) {
+                    error = message(e);
+                    if (target != null) {
+                        try {
+                            target.delete();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+                final String p = path, er = error;
+                postJs("window.__updateDone(" + JSONObject.quote(id) + ","
+                        + JSONObject.quote(p) + "," + JSONObject.quote(er) + ");");
+            }).start();
+        }
+
+        /** 返回 ok / permission / err:原因。permission 时会打开“安装未知应用”设置。 */
+        @JavascriptInterface
+        public String install(String path) {
+            try {
+                if (path == null) return "err:missing";
+                File f = new File(path);
+                String cache = getCacheDir().getCanonicalPath() + File.separator;
+                if (!f.getCanonicalPath().startsWith(cache)) return "err:path";
+                if (!f.isFile()) return "err:missing";
+                if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                    openUnknownSources();
+                    return "permission";
+                }
+                Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".files", f);
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(uri, "application/vnd.android.package-archive");
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                runOnUiThread(() -> {
+                    try {
+                        startActivity(i);
+                    } catch (Exception e) {
+                        Log.w("QiyuanRP", "install intent failed", e);
+                    }
+                });
+                return "ok";
+            } catch (Exception e) {
+                return "err:" + message(e);
+            }
+        }
+
+        @JavascriptInterface
+        public void openUnknownSources() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:" + getPackageName()));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS));
+                    } catch (Exception ignored) {
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void openUrl(String url) {
+            if (!allowed(url)) return;
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception ignored) {
+                }
+            });
+        }
+
+        private boolean allowed(String url) {
+            try {
+                String host = new URL(url).getHost();
+                if (host == null) return false;
+                host = host.toLowerCase();
+                return host.equals("github.com") || host.endsWith(".github.com")
+                        || host.equals("githubusercontent.com")
+                        || host.endsWith(".githubusercontent.com");
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        private HttpURLConnection open(String url, String accept) throws Exception {
+            String cur = url;
+            for (int i = 0; i < 6; i++) {
+                HttpURLConnection conn = (HttpURLConnection) new URL(cur).openConnection();
+                conn.setInstanceFollowRedirects(false);
+                conn.setConnectTimeout(20000);
+                conn.setReadTimeout(30000);
+                conn.setRequestProperty("Accept", accept);
+                conn.setRequestProperty("User-Agent", "Qiyuan-Android");
+                int status = conn.getResponseCode();
+                if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
+                    String loc = conn.getHeaderField("Location");
+                    conn.disconnect();
+                    if (loc == null || loc.isEmpty()) throw new java.io.IOException("重定向缺少地址");
+                    cur = new URL(new URL(cur), loc).toString();
+                    if (!allowed(cur)) throw new java.io.IOException("重定向到不支持的地址");
+                    continue;
+                }
+                return conn;
+            }
+            throw new java.io.IOException("重定向次数过多");
+        }
+
+        private String read(InputStream is, long max) throws Exception {
+            try (InputStream in = is; ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[16384];
+                int n;
+                long total = 0;
+                while ((n = in.read(buf)) != -1) {
+                    total += n;
+                    if (total > max) throw new java.io.IOException("响应过大");
+                    bos.write(buf, 0, n);
+                }
+                return bos.toString("UTF-8");
+            }
+        }
+
+        /** 校验包名、版本号与签名；通过返回 null。 */
+        private String verify(File apk) throws Exception {
+            PackageManager pm = getPackageManager();
+            PackageInfo self = pm.getPackageInfo(getPackageName(), 0);
+            int flags = Build.VERSION.SDK_INT >= 28
+                    ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
+            PackageInfo pi = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
+            if (pi == null) return "下载的文件不是有效的 APK";
+            if (!getPackageName().equals(pi.packageName)) return "安装包包名不匹配";
+            long code = Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
+            long cur = Build.VERSION.SDK_INT >= 28 ? self.getLongVersionCode() : self.versionCode;
+            if (code <= cur) return "安装包版本不高于当前版本";
+            String actual = null;
+            if (Build.VERSION.SDK_INT >= 28) {
+                if (pi.signingInfo != null) {
+                    Signature[] sigs = pi.signingInfo.hasMultipleSigners()
+                            ? pi.signingInfo.getApkContentsSigners()
+                            : pi.signingInfo.getSigningCertificateHistory();
+                    if (sigs != null && sigs.length > 0) actual = sha256(sigs[0].toByteArray());
+                }
+            } else if (pi.signatures != null && pi.signatures.length > 0) {
+                actual = sha256(pi.signatures[0].toByteArray());
+            }
+            if (actual == null) return "无法读取安装包签名";
+            if (!EXPECTED_CERT.equalsIgnoreCase(actual)) return "安装包签名与当前应用不一致";
+            return null;
+        }
+
+        private String sha256(byte[] data) throws Exception {
+            byte[] out = MessageDigest.getInstance("SHA-256").digest(data);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : out) sb.append(String.format("%02x", b & 0xff));
+            return sb.toString();
+        }
+
+        private String message(Exception e) {
+            return e.getMessage() == null ? e.toString() : e.getMessage();
         }
     }
 

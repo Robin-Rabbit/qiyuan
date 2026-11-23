@@ -4,7 +4,7 @@
    ============================================================ */
 'use strict';
 
-const DB_KEY = 'tavo_rp_single_v1';
+const DB_KEY = 'qiyuan_rp_single_v1';
 
 /* ---------------- 主题 ---------------- */
 const THEMES = {

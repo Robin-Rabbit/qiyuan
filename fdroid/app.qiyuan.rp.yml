@@ -1,7 +1,7 @@
 Categories:
   - Reading
 License: MIT
-AuthorName: Tavo
+AuthorName: Qiyuan
 AuthorEmail: robinliu721@qq.com
 SourceCode: https://github.com/Robin-Rabbit/qiyuan
 IssueTracker: https://github.com/Robin-Rabbit/qiyuan/issues
@@ -13,14 +13,14 @@ RepoType: git
 Repo: https://github.com/Robin-Rabbit/qiyuan.git
 
 Builds:
-  - versionName: 0.1.3
-    versionCode: 7
-    commit: v0.1.3
+  - versionName: 0.1.4
+    versionCode: 8
+    commit: v0.1.4
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.1.3
-CurrentVersionCode: 6
+CurrentVersion: 0.1.4
+CurrentVersionCode: 8

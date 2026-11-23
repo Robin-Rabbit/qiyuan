@@ -1,15 +1,15 @@
 /* ============================================================
    一、运行常量 · 世界预设 · 时间引擎 · 数据模型
    ============================================================ */
-const APP_VERSION = '0.1.3';
+const APP_VERSION = '0.1.4';
 const SCHEMA_VERSION = 4;
 const TICK_MS = 30000;          // 现实 30 秒一个时间线 tick
 const AUTONOMY_MIN = 30;        // 每推进 30 世界分钟，尝试一次 NPC 自主行为
 const OFFLINE_DAY_MIN = 1440;   // 超过 1 世界天无操作 → 记忆空洞填补
 const MAX_MESSAGES = 500;
-const STORAGE_KEY = 'tavo_rp_v3';
+const STORAGE_KEY = 'qiyuan_rp_v3';
 const PRIVACY_KEY = 'qiyuan_privacy_v1';
-const LEGACY_KEY = 'tavo_rp_single_v1';
+const LEGACY_KEY = 'qiyuan_rp_single_v1';
 
 /* ---------------- 世界预设（结构化设定 + 原生 NPC） ---------------- */
 const PRESETS = [
@@ -75,7 +75,7 @@ function mediaOpen() {
     const finish = v => { if (!done) { done = true; resolve(v); } };
     try {
       if (!window.indexedDB) return finish(null);
-      const req = indexedDB.open('tavo_media', 1);
+      const req = indexedDB.open('qiyuan_media', 1);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains('img')) db.createObjectStore('img');

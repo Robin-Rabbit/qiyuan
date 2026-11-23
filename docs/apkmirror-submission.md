@@ -5,10 +5,10 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 | 字段 | 内容 |
 |---|---|
 | App name | 启源 (Qiyuan) |
-| Package | app.tavo.rp |
+| Package | app.qiyuan.rp |
 | Version | 0.1.2 |
 | Version code | 6 |
-| Developer | Tavo |
+| Developer | Qiyuan |
 | Category | Books & Reference（或 Entertainment） |
 | Requires Android | 8.0+ |
 | Architecture | Universal（无 native libs） |

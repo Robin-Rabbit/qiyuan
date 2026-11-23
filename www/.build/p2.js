@@ -365,7 +365,7 @@ function llmFail(apiId) {
 }
 
 /* ---------------- 调试日志 ---------------- */
-const DBG_KEY = 'tavo_rp_debug_v1';
+const DBG_KEY = 'qiyuan_rp_debug_v1';
 const DBG_MAX = 300;
 let DBG = null;
 function dbg() {

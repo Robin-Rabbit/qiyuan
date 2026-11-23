@@ -1059,7 +1059,7 @@ function pageAbout() {
       <div class="about">
         <img class="brand-logo" src="logo.png" alt=""><div class="empty-mark">启源</div>
         <div class="about-slogan">沉浸式虚拟世界体验</div>
-        <div class="about-ver">v${APP_VERSION}</div>
+        <div class="about-ver">v${esc(updateVersionName())}</div>
         <p class="about-lead">在启源里，你不是在读一个故事，而是在经营一个会自己运转的世界。</p>
         <div class="about-feats">
           <div class="feat"><b>世界由你定义</b><span>从九州的虚无海到你亲手写下的城邦，世界观、地理、势力与法则分层结构化，也可以继续添加自己的条目。</span></div>
@@ -1074,6 +1074,10 @@ function pageAbout() {
         <div class="rowcard">
           <div class="rrow"><span class="rt">存档占用</span><span class="rv" id="aboutUsage">计算中…</span></div>
           <div class="rrow"><span class="rt">上次导出备份</span><span class="rv" id="aboutBackup">${esc(lastText)}</span></div>
+        </div>
+        <div class="group">软件更新</div>
+        <div class="rowcard">
+          <button class="rrow" id="aboutUpdate"><span class="rt">检查更新</span><span class="rv">v${esc(updateVersionName())}</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
         </div>
         <div class="group">合规与说明</div>
         <div class="rowcard">
@@ -1102,6 +1106,8 @@ function pageAbout() {
   }
   const privacyRow = $('#aboutPrivacy');
   if (privacyRow) privacyRow.onclick = () => { location.href = 'privacy.html'; };
+  const updateRow = $('#aboutUpdate');
+  if (updateRow) updateRow.onclick = () => { pageUpdate(); };
   const toggle = $('#dbgToggleRow');
   if (toggle) toggle.onclick = () => {
     const next = !dbgEnabled();
@@ -3384,6 +3390,340 @@ function showPrivacyGate() {
     if (b) b.textContent = '需要同意后才能使用';
   };
 }
+/* ============================================================
+   软件更新：GitHub Releases 检查 · 下载 · 签名校验后安装
+   ============================================================ */
+const UPDATE_OWNER = 'Robin-Rabbit';
+const UPDATE_REPO = 'qiyuan';
+const UPDATE_API = `https://api.github.com/repos/${UPDATE_OWNER}/${UPDATE_REPO}/releases/latest`;
+const UPDATE_RELEASES = `https://github.com/${UPDATE_OWNER}/${UPDATE_REPO}/releases`;
+const UPDATE_CHECK_KEY = 'qiyuan_update_last_check';
+const UPDATE_SKIP_KEY = 'qiyuan_update_skip';
+
+const UPDATE_HTTP = {};
+const UPDATE_TASKS = {};
+
+function updateNative() {
+  return (typeof AndroidUpdate !== 'undefined' && AndroidUpdate) ? AndroidUpdate : null;
+}
+
+function updateInfo() {
+  try {
+    const n = updateNative();
+    if (n && n.info) return JSON.parse(n.info());
+  } catch (e) { }
+  return { versionName: APP_VERSION, versionCode: 0, canInstall: false };
+}
+
+function updateVersionName() {
+  const info = updateInfo();
+  return info.versionName || APP_VERSION;
+}
+
+/** 解析 v0.1.4 / 0.1.4-beta.1 这类版本号。 */
+function parseVersion(v) {
+  const s = String(v == null ? '' : v).trim().replace(/^v/i, '').split(/[+\s]/)[0];
+  const m = s.match(/^(\d+(?:\.\d+)*)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!m) return null;
+  return { parts: m[1].split('.').map(n => Number(n) || 0), pre: m[2] || '' };
+}
+
+function compareVersions(a, b) {
+  const x = parseVersion(a), y = parseVersion(b);
+  if (!x && !y) return 0;
+  if (!x) return -1;
+  if (!y) return 1;
+  const len = Math.max(x.parts.length, y.parts.length);
+  for (let i = 0; i < len; i++) {
+    const d = (x.parts[i] || 0) - (y.parts[i] || 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  if (x.pre && !y.pre) return -1;
+  if (!x.pre && y.pre) return 1;
+  if (x.pre === y.pre) return 0;
+  return x.pre > y.pre ? 1 : -1;
+}
+
+/** 优先选择与 tag 同名的 APK，其次任何 APK。 */
+function pickUpdateAsset(release) {
+  const assets = (release && release.assets) || [];
+  const apks = assets.filter(a => a && /\.apk$/i.test(a.name || ''));
+  if (!apks.length) return null;
+  const tag = String((release && release.tag_name) || '').replace(/^v/i, '').toLowerCase();
+  const score = a => {
+    const n = String(a.name || '').toLowerCase();
+    let s = 0;
+    if (tag && n.includes(tag)) s += 4;
+    if (n.includes('qiyuan')) s += 2;
+    if (n.includes('universal')) s += 1;
+    return s;
+  };
+  apks.sort((a, b) => score(b) - score(a) || (b.size || 0) - (a.size || 0));
+  return apks[0];
+}
+
+function updateHttpGet(url) {
+  const n = updateNative();
+  if (n && n.get) {
+    return new Promise((resolve, reject) => {
+      const id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const timer = setTimeout(() => {
+        delete UPDATE_HTTP[id];
+        reject(new Error('检查超时'));
+      }, 25000);
+      UPDATE_HTTP[id] = {
+        resolve: v => { clearTimeout(timer); resolve(v); },
+        reject: e => { clearTimeout(timer); reject(new Error(e)); }
+      };
+      try { n.get(id, url); } catch (e) { clearTimeout(timer); delete UPDATE_HTTP[id]; reject(e); }
+    });
+  }
+  return fetch(url, {
+    headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store'
+  }).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  });
+}
+
+window.__updateHttpResult = function (id, body, err) {
+  const t = UPDATE_HTTP[id];
+  if (!t) return;
+  delete UPDATE_HTTP[id];
+  if (err) t.reject(err);
+  else t.resolve(body);
+};
+
+async function checkForUpdate() {
+  const current = updateVersionName();
+  const raw = await updateHttpGet(UPDATE_API);
+  let data;
+  try { data = JSON.parse(raw); } catch (e) { throw new Error('更新信息格式异常'); }
+  if (!data || (!data.tag_name && !data.name)) throw new Error('没有可用的发布版本');
+  const latest = String(data.tag_name || data.name).replace(/^v/i, '');
+  if (!parseVersion(latest)) throw new Error('无法识别版本号');
+  const asset = pickUpdateAsset(data);
+  const info = {
+    current,
+    latest,
+    newer: compareVersions(latest, current) > 0,
+    url: asset ? String(asset.browser_download_url || '') : '',
+    size: asset ? Number(asset.size || 0) : 0,
+    notes: String(data.body || ''),
+    page: String(data.html_url || UPDATE_RELEASES),
+    publishedAt: String(data.published_at || '')
+  };
+  try { localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now())); } catch (e) { }
+  return info;
+}
+
+function updateDownload(info, onProgress) {
+  const n = updateNative();
+  if (!n || !n.download) return Promise.reject(new Error('当前版本不支持应用内下载'));
+  if (!info || !info.url) return Promise.reject(new Error('该版本没有提供 APK'));
+  const name = decodeURIComponent((info.url.split('/').pop() || 'qiyuan-update.apk').split('?')[0]);
+  return new Promise((resolve, reject) => {
+    const id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const timer = setTimeout(() => {
+      delete UPDATE_TASKS[id];
+      reject(new Error('下载超时'));
+    }, 10 * 60 * 1000);
+    UPDATE_TASKS[id] = {
+      onProgress,
+      resolve: p => { clearTimeout(timer); resolve(p); },
+      reject: e => { clearTimeout(timer); reject(new Error(e)); }
+    };
+    try { n.download(id, info.url, name); } catch (e) { clearTimeout(timer); delete UPDATE_TASKS[id]; reject(e); }
+  });
+}
+
+window.__updateProgress = function (id, loaded, total) {
+  const t = UPDATE_TASKS[id];
+  if (t && t.onProgress) t.onProgress(Number(loaded) || 0, Number(total) || 0);
+};
+
+window.__updateDone = function (id, path, err) {
+  const t = UPDATE_TASKS[id];
+  if (!t) return;
+  delete UPDATE_TASKS[id];
+  if (err) t.reject(err);
+  else t.resolve(path);
+};
+
+function installUpdate(path) {
+  const n = updateNative();
+  if (!n || !n.install) { toast('当前版本不支持应用内安装', false); return; }
+  let r = '';
+  try { r = n.install(path); } catch (e) { r = 'err:' + e.message; }
+  if (r === 'ok') {
+    toast('已打开系统安装界面');
+  } else if (r === 'permission') {
+    openDialog({
+      title: '需要允许「启源」安装应用。请打开安装未知应用权限，返回后再点一次安装。',
+      cancel: '稍后', ok: '去设置',
+      onOk: () => { try { n.openUnknownSources(); } catch (e) { } }
+    });
+  } else {
+    toast('安装失败：' + String(r || '').replace(/^err:/, ''), false);
+  }
+}
+
+function openUpdatePage(url) {
+  const n = updateNative();
+  if (n && n.openUrl) { try { n.openUrl(url); return; } catch (e) { } }
+  try { window.open(url, '_blank'); } catch (e) { location.href = url; }
+}
+
+function updateSizeText(n) {
+  const x = Number(n) || 0;
+  if (!x) return '';
+  return x >= 1048576 ? (x / 1048576).toFixed(1) + ' MB' : Math.round(x / 1024) + ' KB';
+}
+
+function pageUpdate(initial) {
+  let info = initial || null;
+  let busy = !initial;
+  let downloading = false;
+  let apkPath = '';
+  let error = '';
+  let note = '';
+  let progress = { loaded: 0, total: 0 };
+  const { page } = pushPage({ title: '软件更新', action: '', body: '' });
+  const body = $('.pbody', page);
+
+  const draw = () => {
+    const cur = updateVersionName();
+    const pct = progress.total > 0
+      ? Math.min(100, Math.round(progress.loaded * 100 / progress.total))
+      : (progress.loaded ? 1 : 0);
+    let main = '';
+    if (busy) {
+      main = `<div class="stage-plan-msg">正在检查更新…</div>`;
+    } else if (error) {
+      main = `<div class="stage-plan-msg">检查失败：${esc(error)}</div>
+        <div class="update-actions">
+          <button class="pbtn grad" id="upCheck">重试</button>
+          <button class="pbtn ghost" id="upPage">在浏览器打开 Releases</button>
+        </div>`;
+    } else if (info && info.newer) {
+      const notes = String(info.notes || '').trim();
+      main = `<div class="update-card">
+          <div class="update-ver"><span>当前版本</span><b>v${esc(cur)}</b></div>
+          <div class="update-ver"><span>最新版本</span><b class="ok-text">v${esc(info.latest)}</b></div>
+          ${updateSizeText(info.size) ? `<div class="update-ver"><span>安装包大小</span><b>${esc(updateSizeText(info.size))}</b></div>` : ''}
+        </div>
+        ${notes ? `<div class="group">更新说明</div><div class="update-notes">${esc(notes.slice(0, 4000)).replace(/\n/g, '<br>')}</div>` : ''}
+        ${downloading ? `<div class="update-card">
+          <div class="update-ver"><span>正在下载</span><b id="upPct">${pct}%</b></div>
+          <div class="update-bar"><i id="upBarFill" style="width:${pct}%"></i></div>
+        </div>` : ''}
+        ${note ? `<div class="stage-plan-msg">${esc(note)}</div>` : ''}
+        <div class="update-actions">
+          ${apkPath
+            ? `<button class="pbtn grad" id="upInstall">安装 v${esc(info.latest)}</button>`
+            : `<button class="pbtn grad" id="upDownload" ${downloading || !info.url ? 'disabled' : ''}>${downloading ? '下载中…' : (info.url ? '下载并安装' : '该版本未提供 APK')}</button>`}
+          <button class="pbtn ghost" id="upPage">在浏览器打开</button>
+          <button class="pbtn ghost" id="upSkip">跳过此版本</button>
+        </div>`;
+    } else if (info) {
+      main = `<div class="update-card">
+          <div class="update-ver"><span>当前版本</span><b>v${esc(cur)}</b></div>
+          <div class="update-ver"><span>最新版本</span><b class="ok-text">v${esc(info.latest)}</b></div>
+        </div>
+        <div class="stage-plan-msg">已是最新版本。</div>
+        <div class="update-actions">
+          <button class="pbtn ghost" id="upCheck">重新检查</button>
+          <button class="pbtn ghost" id="upPage">在浏览器打开 Releases</button>
+        </div>`;
+    }
+    body.innerHTML = `
+      <div class="update-hero">
+        <img src="logo.png" alt="">
+        <div><b>启源</b><span>当前版本 v${esc(cur)}</span></div>
+      </div>
+      ${main}`;
+  };
+
+  const runCheck = async () => {
+    if (busy || downloading) return;
+    busy = true; error = ''; note = ''; draw();
+    try {
+      info = await checkForUpdate();
+      busy = false; draw();
+    } catch (e) {
+      busy = false; error = e.message || '网络不可用'; draw();
+    }
+  };
+
+  const startDownload = async () => {
+    if (downloading || !info || !info.url) return;
+    downloading = true; note = ''; error = ''; apkPath = '';
+    progress = { loaded: 0, total: info.size || 0 };
+    draw();
+    try {
+      apkPath = await updateDownload(info, (loaded, total) => {
+        progress = { loaded, total: total || info.size || 0 };
+        const pct = progress.total > 0
+          ? Math.min(100, Math.round(loaded * 100 / progress.total)) : 1;
+        const bar = $('#upBarFill', body), pctEl = $('#upPct', body);
+        if (bar) bar.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '%';
+      });
+      downloading = false; note = '下载完成，已校验签名。'; draw();
+      toast('下载完成，可以安装');
+    } catch (e) {
+      downloading = false; note = '下载失败：' + (e.message || '未知错误'); draw();
+      toast('下载失败', false);
+    }
+  };
+
+  body.addEventListener('click', e => {
+    if (e.target.closest('#upCheck')) { runCheck(); return; }
+    if (e.target.closest('#upDownload')) { startDownload(); return; }
+    if (e.target.closest('#upInstall')) { installUpdate(apkPath); return; }
+    if (e.target.closest('#upPage')) {
+      openUpdatePage((info && info.page) || UPDATE_RELEASES);
+      return;
+    }
+    if (e.target.closest('#upSkip')) {
+      if (info && info.latest) {
+        try { localStorage.setItem(UPDATE_SKIP_KEY, info.latest); } catch (err) { }
+        toast('已跳过 v' + info.latest + '，仍可手动检查');
+      }
+      return;
+    }
+  });
+
+  draw();
+  if (!initial) runCheck();
+  return { page, runCheck };
+}
+
+function showUpdateFound(info) {
+  if (!info || !info.newer) return;
+  openDialog({
+    title: `发现新版本 v${esc(info.latest)}`,
+    cancel: '稍后', ok: '查看更新',
+    onOk: () => pageUpdate(info)
+  });
+}
+
+async function autoCheckUpdate() {
+  if (!updateNative()) return;
+  let last = 0;
+  try { last = Number(localStorage.getItem(UPDATE_CHECK_KEY) || 0); } catch (e) { }
+  if (last && Date.now() - last < 24 * 3600 * 1000) return;
+  try {
+    const info = await checkForUpdate();
+    let skip = '';
+    try { skip = localStorage.getItem(UPDATE_SKIP_KEY) || ''; } catch (e) { }
+    if (info.newer && skip !== info.latest) setTimeout(() => showUpdateFound(info), 300);
+  } catch (e) {
+    console.warn('[update] 检查失败：' + (e.message || e));
+  }
+}
+
 function boot() {
   applyTheme(DB.config.theme, true);
   if (!privacyAccepted()) {
@@ -3405,6 +3745,7 @@ function boot() {
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
   bindUI();
   startTick();
+  setTimeout(() => { if (DB.stories.length) autoCheckUpdate(); }, 4000);
   showHeader();
   setTimeout(hideHeader, 2200);
   updateSafeArea();

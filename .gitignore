@@ -6,7 +6,7 @@ local.properties
 *.iml
 .idea/
 captures/
-tavo-release.keystore
+qiyuan-release.keystore
 *.jks
 *.keystore
 dist/

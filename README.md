@@ -43,7 +43,7 @@ export ANDROID_HOME=/path/to/android-sdk
 ./gradlew assembleRelease
 ```
 
-没有 `tavo-release.keystore` 时生成未签名 release APK：
+没有 `qiyuan-release.keystore` 时生成未签名 release APK：
 
 ```bash
 ./gradlew assembleRelease
@@ -53,9 +53,9 @@ export ANDROID_HOME=/path/to/android-sdk
 本地签名（不要提交 keystore）：
 
 ```bash
-export TAVO_STORE_PASSWORD=...
-export TAVO_KEY_ALIAS=tavo
-export TAVO_KEY_PASSWORD=...
+export QIYUAN_STORE_PASSWORD=...
+export QIYUAN_KEY_ALIAS=qiyuan
+export QIYUAN_KEY_PASSWORD=...
 ./gradlew assembleRelease
 ```
 
@@ -90,10 +90,10 @@ rm -rf app/src/main/assets/www/.build
 - Android WebView 壳 + 纯静态前端，无前端框架、无构建步骤。
 - 原生 HTTP 桥实现 SSE 流式输出与不受 CORS 限制的模型请求。
 - 数据：`localStorage` 结构化存档 + `IndexedDB` 图片。
-- 包名：`app.tavo.rp`；最低 Android 8.0（API 26）。
+- 包名：`app.qiyuan.rp`；最低 Android 8.0（API 26）。
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 Tavo
+[MIT](LICENSE) © 2026 Qiyuan
 
 应用内叙事由用户配置的第三方模型生成；第三方模型、接口与生成内容受各自服务条款约束。

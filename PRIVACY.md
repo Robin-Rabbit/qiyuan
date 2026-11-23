@@ -4,9 +4,9 @@
 政策版本：1.0  
 适用应用版本：0.1.2
 
-开发者：Tavo  
+开发者：Qiyuan  
 应用名称：启源  
-应用包名：app.tavo.rp  
+应用包名：app.qiyuan.rp  
 联系邮箱：robinliu721@qq.com
 
 完整政策见应用内 `www/privacy.html`，或访问仓库中的 `docs/privacy.html`。

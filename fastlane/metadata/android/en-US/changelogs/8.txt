@@ -1,0 +1,1 @@
+0.1.4: in-app update checks against GitHub Releases; verified download and install; daily automatic check; skip a version.
