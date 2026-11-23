@@ -4,7 +4,7 @@
 
 从 0.1.4 起，安装包改用新的应用标识：
 
-- 包名：`app.qiyuan.rp`（旧版为 `app.qiyuan.rp`）
+- 包名：`app.qiyuan.rp`（旧版包名已停用）
 - 签名证书：`CN=Qiyuan RP, OU=Single Player, O=Qiyuan`
 - 证书 SHA-256：`d0452d999f5234db0e843ec4a33dbcb5ac258b010882d3b8e75e6b06de92e58f`
 
