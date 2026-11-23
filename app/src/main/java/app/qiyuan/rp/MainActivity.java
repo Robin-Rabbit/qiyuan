@@ -720,7 +720,6 @@ public class MainActivity extends Activity {
                 if (!f.getCanonicalPath().startsWith(cache)) return "err:path";
                 if (!f.isFile()) return "err:missing";
                 if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-                    openUnknownSources();
                     return "permission";
                 }
                 Uri uri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".files", f);

@@ -1954,13 +1954,6 @@ function renderWizard() {
   let body = '', action = '下一步', canNext = true;
   if (step === 0) {
     body = `<div class="wizard-hero"><div class="wiz-brand">启源 · 沉浸式虚拟世界体验</div><h2>从一个世界开始</h2></div>
-      <div class="cardio top">
-        <div class="two">
-          <button class="pbtn ghost" id="wizImportCard">导入世界卡</button>
-          ${activeStory() ? `<button class="pbtn ghost" id="wizExportCard">导出当前世界卡</button>` : ''}
-        </div>
-        ${(DB.cards || []).length ? `<button class="pbtn ghost" id="wizCards" style="margin-top:8px">世界卡库 · ${(DB.cards || []).length} 张</button>` : ''}
-      </div>
       <div class="group">游玩模式</div>
       <div class="seg wiz-mode" id="wizMode">
         <button data-v="free" class="${WIZ.storyMode ? '' : 'on'}">自由模式</button>
@@ -2024,13 +2017,6 @@ function renderWizard() {
   page.addEventListener('click', e => {
     const lr = e.target.closest('.wz-llm-ref');
     if (lr) { openWizardLLMPicker(page, lr.dataset.k, lr); return; }
-    if (e.target.closest('#wizImportCard')) { pageImportCard(); return; }
-    if (e.target.closest('#wizCards')) { dismissWizard(); pageCards(); return; }
-    if (e.target.closest('#wizExportCard')) {
-      const s = activeStory();
-      if (s) pageExportCard(s); else toast('没有可导出的实例', false);
-      return;
-    }
     if (e.target.closest('#wizManageAPIs')) {
       collectWizard();
       pageAPIs();
@@ -3158,7 +3144,12 @@ function bindUI() {
     if (tab && tab.parentElement.classList.contains('cfg-tabs')) {
       DB.ui.rightTab = tab.dataset.tab; saveDB(); renderRight(); return;
     }
-    if (!s) return;
+    if (!s) {
+      // 空状态右抽屉只有创建世界等全局动作，不能因为没有实例就吞掉点击。
+      const a0 = e.target.closest('[data-act]');
+      if (a0) handleAct(a0.dataset.act, a0);
+      return;
+    }
     const mem = e.target.closest('[data-mem]');
     if (mem) { pageMemoryEdit(s, mem.dataset.mem); return; }
     const bm = e.target.closest('[data-bm]');
@@ -3241,6 +3232,8 @@ function handleAct(act, el) {
   if (act === 'new-story') { openWizard(); return true; }
   if (act === 'cards') { pageCards(); return true; }
   if (act === 'apis') { pageAPIs(); return true; }
+  if (act === 'importCard') { pageImportCard(); return true; }
+  if (act === 'about') { pageAbout(); return true; }
   if (act === 'opening') { if (s) generateOpening(s); return true; }
   if (!s) return false;
   if (act === 'copy') { const m = s.messages.find(x => x.id === el.dataset.id); copyText(m && m.text); return true; }
@@ -3279,7 +3272,6 @@ function handleAct(act, el) {
   if (act === 'bg') { pageAppearance(s); return true; }
   if (act === 'rename') { renameInstance(s.id); return true; }
   if (act === 'exportCard') { pageExportCard(s); return true; }
-  if (act === 'importCard') { pageImportCard(); return true; }
   if (act === 'export') { pageExport(s); return true; }
   if (act === 'import') { pageImport(); return true; }
   if (act === 'delete') {
@@ -3291,7 +3283,6 @@ function handleAct(act, el) {
       }
     }); return true;
   }
-  if (act === 'about') { pageAbout(); return true; }
   if (act.startsWith('llm:')) { pageLLM(act.slice(4)); return true; }
   if (act.startsWith('mem:')) {
     const sub = act.slice(4);
@@ -3470,7 +3461,7 @@ function updateHttpGet(url) {
       const timer = setTimeout(() => {
         delete UPDATE_HTTP[id];
         reject(new Error('检查超时'));
-      }, 25000);
+      }, 55000);
       UPDATE_HTTP[id] = {
         resolve: v => { clearTimeout(timer); resolve(v); },
         reject: e => { clearTimeout(timer); reject(new Error(e)); }

@@ -140,13 +140,20 @@ function renderMessages() {
   const list = $('#msgList');
   if (!list) return;
   if (!s) {
+    const nc = (DB.cards || []).length;
     list.innerHTML = `<div class="empty">
       <img class="brand-logo" src="logo.png" alt=""><div class="empty-mark">启源</div>
       <div class="empty-title">沉浸式虚拟世界体验</div>
       <div class="empty-sub">没有账号，没有服务器，没有世界市场。<br>所有设定、记忆与时间线都保存在这台设备上。</div>
-      <button class="pbtn" data-act="new-story">创建第一个世界</button>
-      <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>
+      ${nc
+        ? `<button class="pbtn" data-act="cards">从世界卡开始 · ${nc}</button>
+           <button class="pbtn ghost" data-act="new-story" style="margin-top:10px">创建新世界</button>`
+        : `<button class="pbtn" data-act="new-story">创建第一个世界</button>
+           <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>`}
     </div>`;
+    $$('[data-act]', list).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     list.dataset.story = '';
     return;
   }
@@ -260,11 +267,17 @@ function renderLeft() {
   </div>`;
   if (!s) {
     const nc = (DB.cards || []).length;
-    el.innerHTML = brand + `<div class="l-empty"><p>${nc ? `世界卡库里有 ${nc} 张世界卡。` : '还没有世界实例。'}</p>
-      ${nc ? `<button class="pbtn" data-act="cards">世界卡库 · ${nc}</button><button class="pbtn ghost" data-act="new-story" style="margin-top:10px">创建新世界</button>` : `<button class="pbtn" data-act="new-story">创建世界</button>`}
-      <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>
-      ${nc ? '' : `<button class="pbtn ghost" data-act="cards" style="margin-top:10px">世界卡库</button>`}
-      <button class="pbtn ghost" data-act="apis" style="margin-top:10px">模型与 API</button></div>`;
+    el.innerHTML = brand + `<div class="l-empty"><p>${nc ? `世界卡库里有 ${nc} 张世界卡，可以直接开始一局。` : '还没有世界实例。'}</p>
+      <button class="pbtn" data-act="new-story">创建新世界</button>
+      ${nc
+        ? `<button class="pbtn ghost" data-act="cards" style="margin-top:10px">世界卡库 · ${nc} 张</button>`
+        : `<button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>`}
+    </div>
+    <div class="dr-foot"><button class="pbtn ghost" data-act="apis">模型与 API</button></div>`;
+    // 空状态没有实例，抽屉内的按钮直接绑定，避免依赖委托时被其他逻辑吞掉。
+    $$('[data-act]', el).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     return;
   }
   const inst = s.instance;
@@ -330,6 +343,9 @@ function renderRight() {
   const s = activeStory();
   if (!s) {
     el.innerHTML = `<div class="l-empty"><p>创建世界后，这里会显示事件簿、模型与记忆。</p><button class="pbtn" data-act="new-story">创建世界</button></div>`;
+    $$('[data-act]', el).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     return;
   }
   const ui = DB.ui;

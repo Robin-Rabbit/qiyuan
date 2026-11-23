@@ -81,7 +81,7 @@ const THEMES = {
 /* ============================================================
    一、运行常量 · 世界预设 · 时间引擎 · 数据模型
    ============================================================ */
-const APP_VERSION = '0.1.4';
+const APP_VERSION = '0.1.5';
 const SCHEMA_VERSION = 4;
 const TICK_MS = 30000;          // 现实 30 秒一个时间线 tick
 const AUTONOMY_MIN = 30;        // 每推进 30 世界分钟，尝试一次 NPC 自主行为
@@ -4542,13 +4542,20 @@ function renderMessages() {
   const list = $('#msgList');
   if (!list) return;
   if (!s) {
+    const nc = (DB.cards || []).length;
     list.innerHTML = `<div class="empty">
       <img class="brand-logo" src="logo.png" alt=""><div class="empty-mark">启源</div>
       <div class="empty-title">沉浸式虚拟世界体验</div>
       <div class="empty-sub">没有账号，没有服务器，没有世界市场。<br>所有设定、记忆与时间线都保存在这台设备上。</div>
-      <button class="pbtn" data-act="new-story">创建第一个世界</button>
-      <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>
+      ${nc
+        ? `<button class="pbtn" data-act="cards">从世界卡开始 · ${nc}</button>
+           <button class="pbtn ghost" data-act="new-story" style="margin-top:10px">创建新世界</button>`
+        : `<button class="pbtn" data-act="new-story">创建第一个世界</button>
+           <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>`}
     </div>`;
+    $$('[data-act]', list).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     list.dataset.story = '';
     return;
   }
@@ -4662,11 +4669,17 @@ function renderLeft() {
   </div>`;
   if (!s) {
     const nc = (DB.cards || []).length;
-    el.innerHTML = brand + `<div class="l-empty"><p>${nc ? `世界卡库里有 ${nc} 张世界卡。` : '还没有世界实例。'}</p>
-      ${nc ? `<button class="pbtn" data-act="cards">世界卡库 · ${nc}</button><button class="pbtn ghost" data-act="new-story" style="margin-top:10px">创建新世界</button>` : `<button class="pbtn" data-act="new-story">创建世界</button>`}
-      <button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>
-      ${nc ? '' : `<button class="pbtn ghost" data-act="cards" style="margin-top:10px">世界卡库</button>`}
-      <button class="pbtn ghost" data-act="apis" style="margin-top:10px">模型与 API</button></div>`;
+    el.innerHTML = brand + `<div class="l-empty"><p>${nc ? `世界卡库里有 ${nc} 张世界卡，可以直接开始一局。` : '还没有世界实例。'}</p>
+      <button class="pbtn" data-act="new-story">创建新世界</button>
+      ${nc
+        ? `<button class="pbtn ghost" data-act="cards" style="margin-top:10px">世界卡库 · ${nc} 张</button>`
+        : `<button class="pbtn ghost" data-act="importCard" style="margin-top:10px">导入世界卡</button>`}
+    </div>
+    <div class="dr-foot"><button class="pbtn ghost" data-act="apis">模型与 API</button></div>`;
+    // 空状态没有实例，抽屉内的按钮直接绑定，避免依赖委托时被其他逻辑吞掉。
+    $$('[data-act]', el).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     return;
   }
   const inst = s.instance;
@@ -4732,6 +4745,9 @@ function renderRight() {
   const s = activeStory();
   if (!s) {
     el.innerHTML = `<div class="l-empty"><p>创建世界后，这里会显示事件簿、模型与记忆。</p><button class="pbtn" data-act="new-story">创建世界</button></div>`;
+    $$('[data-act]', el).forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); handleAct(b.dataset.act, b); };
+    });
     return;
   }
   const ui = DB.ui;
@@ -6814,13 +6830,6 @@ function renderWizard() {
   let body = '', action = '下一步', canNext = true;
   if (step === 0) {
     body = `<div class="wizard-hero"><div class="wiz-brand">启源 · 沉浸式虚拟世界体验</div><h2>从一个世界开始</h2></div>
-      <div class="cardio top">
-        <div class="two">
-          <button class="pbtn ghost" id="wizImportCard">导入世界卡</button>
-          ${activeStory() ? `<button class="pbtn ghost" id="wizExportCard">导出当前世界卡</button>` : ''}
-        </div>
-        ${(DB.cards || []).length ? `<button class="pbtn ghost" id="wizCards" style="margin-top:8px">世界卡库 · ${(DB.cards || []).length} 张</button>` : ''}
-      </div>
       <div class="group">游玩模式</div>
       <div class="seg wiz-mode" id="wizMode">
         <button data-v="free" class="${WIZ.storyMode ? '' : 'on'}">自由模式</button>
@@ -6884,13 +6893,6 @@ function renderWizard() {
   page.addEventListener('click', e => {
     const lr = e.target.closest('.wz-llm-ref');
     if (lr) { openWizardLLMPicker(page, lr.dataset.k, lr); return; }
-    if (e.target.closest('#wizImportCard')) { pageImportCard(); return; }
-    if (e.target.closest('#wizCards')) { dismissWizard(); pageCards(); return; }
-    if (e.target.closest('#wizExportCard')) {
-      const s = activeStory();
-      if (s) pageExportCard(s); else toast('没有可导出的实例', false);
-      return;
-    }
     if (e.target.closest('#wizManageAPIs')) {
       collectWizard();
       pageAPIs();
@@ -8018,7 +8020,12 @@ function bindUI() {
     if (tab && tab.parentElement.classList.contains('cfg-tabs')) {
       DB.ui.rightTab = tab.dataset.tab; saveDB(); renderRight(); return;
     }
-    if (!s) return;
+    if (!s) {
+      // 空状态右抽屉只有创建世界等全局动作，不能因为没有实例就吞掉点击。
+      const a0 = e.target.closest('[data-act]');
+      if (a0) handleAct(a0.dataset.act, a0);
+      return;
+    }
     const mem = e.target.closest('[data-mem]');
     if (mem) { pageMemoryEdit(s, mem.dataset.mem); return; }
     const bm = e.target.closest('[data-bm]');
@@ -8101,6 +8108,8 @@ function handleAct(act, el) {
   if (act === 'new-story') { openWizard(); return true; }
   if (act === 'cards') { pageCards(); return true; }
   if (act === 'apis') { pageAPIs(); return true; }
+  if (act === 'importCard') { pageImportCard(); return true; }
+  if (act === 'about') { pageAbout(); return true; }
   if (act === 'opening') { if (s) generateOpening(s); return true; }
   if (!s) return false;
   if (act === 'copy') { const m = s.messages.find(x => x.id === el.dataset.id); copyText(m && m.text); return true; }
@@ -8139,7 +8148,6 @@ function handleAct(act, el) {
   if (act === 'bg') { pageAppearance(s); return true; }
   if (act === 'rename') { renameInstance(s.id); return true; }
   if (act === 'exportCard') { pageExportCard(s); return true; }
-  if (act === 'importCard') { pageImportCard(); return true; }
   if (act === 'export') { pageExport(s); return true; }
   if (act === 'import') { pageImport(); return true; }
   if (act === 'delete') {
@@ -8151,7 +8159,6 @@ function handleAct(act, el) {
       }
     }); return true;
   }
-  if (act === 'about') { pageAbout(); return true; }
   if (act.startsWith('llm:')) { pageLLM(act.slice(4)); return true; }
   if (act.startsWith('mem:')) {
     const sub = act.slice(4);
@@ -8330,7 +8337,7 @@ function updateHttpGet(url) {
       const timer = setTimeout(() => {
         delete UPDATE_HTTP[id];
         reject(new Error('检查超时'));
-      }, 25000);
+      }, 55000);
       UPDATE_HTTP[id] = {
         resolve: v => { clearTimeout(timer); resolve(v); },
         reject: e => { clearTimeout(timer); reject(new Error(e)); }
