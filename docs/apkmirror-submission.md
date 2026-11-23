@@ -6,15 +6,15 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 |---|---|
 | App name | 启源 (Qiyuan) |
 | Package | app.qiyuan.rp |
-| Version | 0.1.2 |
-| Version code | 6 |
+| Version | 0.1.4 |
+| Version code | 8 |
 | Developer | Qiyuan |
 | Category | Books & Reference（或 Entertainment） |
 | Requires Android | 8.0+ |
 | Architecture | Universal（无 native libs） |
-| APK | `android-app/dist/启源-0.1.2.apk` |
-| SHA-256 | `3a3e4ce96786da8396905705723561f466fce128446ef7df69fd10f2fcc30cf7` |
-| Signing certificate SHA-256 | `959bdb2131935e384f00cc924a253861c102f124d12b9e87ef0c542899faa6d8` |
+| APK | `android-app/dist/启源-0.1.4.apk` |
+| SHA-256 | `e49ed728ce7720e1fe837d0cef29d767888a6e9653635e2720fbff312c65f034` |
+| Signing certificate SHA-256 | `d0452d999f5234db0e843ec4a33dbcb5ac258b010882d3b8e75e6b06de92e58f` |
 | Icon | `android-app/store/icon-512.png` |
 | Screenshots | `android-app/store/screenshots/*.png` |
 | Changelog | 见下方 |
@@ -25,12 +25,11 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 
 ## 更新日志
 
-- 新增首次启动隐私授权与完整隐私政策入口
-- 世界卡与实例彻底分离，同一张卡可创建多个实例
-- 剧情阶段只属于实例，不再写入世界卡
-- 角色演化只修改实例，不回写世界卡
-- 体验存档携带实例阶段定义
-- 关闭 Android 自动备份
+- 新增应用内更新：从 GitHub Releases 检查、下载并校验签名后安装
+- 应用标识更换为 app.qiyuan.rp 与新的发布签名证书；旧版需导出存档后重装
+- 剧情规划支持玩家要求与单阶段生成
+- 世界卡与实例彻底分离，剧情阶段只属于实例
+- 隐私政策补充更新检查与安装权限说明
 
 ## 上传步骤
 
@@ -38,4 +37,5 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 2. 进入 Upload / Submit 页面。
 3. 填写应用名、包名、版本、开发者、分类与更新日志。
 4. 上传 APK、图标与截图。
-5. 提交后等待人工审核；如要求 Play Store 链接或官网，可提供 GitHub Releases 页面。
+5. 提交后等待人工审核；GitHub Releases：<https://github.com/Robin-Rabbit/qiyuan/releases/tag/v0.1.4>。
+6. 0.1.4 使用新包名与新签名证书，与 0.1.2 投稿不是同一应用标识，请在审核说明中注明。

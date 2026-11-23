@@ -3,7 +3,7 @@
 ## 1. 前置条件
 
 - 公开源码仓库：`https://github.com/Robin-Rabbit/qiyuan`
-- Tag：`v0.1.2`（versionCode 6）
+- Tag：`v0.1.4`（versionCode 8）
 - 许可证：MIT
 - 无预编译二进制、无广告 / 统计 SDK
 - 构建：`./gradlew assembleRelease`，无 keystore 时输出 `app-release-unsigned.apk`
@@ -28,9 +28,9 @@ F-Droid 通过 GitLab 上的 `fdroiddata` 仓库合并请求收录应用：
 
 ```yaml
 Builds:
-  - versionName: 0.1.2
+  - versionName: 0.1.4
     versionCode: 6
-    commit: v0.1.2
+    commit: v0.1.4
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
