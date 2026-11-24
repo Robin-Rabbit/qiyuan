@@ -13,7 +13,7 @@ APKMirror 目前以上传表单 + 人工审核为主，需要账号登录。准�
 | Requires Android | 8.0+ |
 | Architecture | Universal（无 native libs） |
 | APK | `android-app/dist/启源-0.1.4.apk` |
-| SHA-256 | `9a81a4f50ae1e8812f493527f0e6b2764d36d36fcd597aaed4c241251374d106` |
+| SHA-256 | `9e57a7bc912a47e3609e409f765e94cd4caecc2c437956b2702a26bbea42e849` |
 | Signing certificate SHA-256 | `d0452d999f5234db0e843ec4a33dbcb5ac258b010882d3b8e75e6b06de92e58f` |
 | Icon | `android-app/store/icon-512.png` |
 | Screenshots | `android-app/store/screenshots/*.png` |
